@@ -1,0 +1,15 @@
+2026/06/23 10:28:15 [DEBUG-ETCD] WatchCoordinators: doing initial fetch...
+2026/06/23 10:28:15 [DEBUG-ETCD] WatchCoordinators: initial fetch found 0 keys
+2026/06/23 10:28:15 [DEBUG-ETCD] WatchCoordinators: starting etcd watch...
+2026/06/23 10:28:15 [DEBUG-COORD] Ring Watcher goroutine started
+2026/06/23 10:28:15 [DEBUG-ETCD] WatchCoordinators: watch event type 0 on node node-1782190695943293000
+2026/06/23 10:28:15 [DEBUG-COORD] Ring Watcher received event: type=0, node=node-1782190695943293000
+2026/06/23 10:28:15 [DEBUG-COORD] Ring Watcher invoking onRingChange with nodes: [node-1782190695943293000]
+2026/06/23 10:28:15 Adopting partition 0
+2026/06/23 10:28:15 Adopting partition 1
+2026/06/23 10:28:15 Adopting partition 2
+2026/06/23 10:28:15 Adopting partition 3
+2026/06/23 10:28:16 partition 0: reconstructed 0 active jobs from S3
+2026/06/23 10:28:16 partition 2: reconstructed 0 active jobs from S3
+2026/06/23 10:28:16 partition 1: reconstructed 0 active jobs from S3
+2026/06/23 10:28:16 partition 3: reconstructed 0 active jobs from S3

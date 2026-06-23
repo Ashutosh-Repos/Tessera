@@ -1,0 +1,23 @@
+2026/06/23 10:28:16 [Sim-CRR] Starting Cross-Region Replication simulator...
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_0/job_us-east:c481a8a6-6a6c-4539-ab61-cdcbb3c6671b/job_manifest.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_0/job_us-east:c481a8a6-6a6c-4539-ab61-cdcbb3c6671b/job_manifest.json
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_2/job_us-east:db0e6a24-5174-4dd4-b888-3d22aee269c4/job_manifest.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_2/job_us-east:db0e6a24-5174-4dd4-b888-3d22aee269c4/job_manifest.json
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_3/job_us-east:48a5147d-d29a-4de6-99d9-bba1690469ce/job_manifest.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_3/job_us-east:48a5147d-d29a-4de6-99d9-bba1690469ce/job_manifest.json
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/job_completed.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/job_completed.json
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/job_manifest.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/job_manifest.json
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/manifest.mpd from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/manifest.mpd
+2026/06/23 10:28:18 [Sim-CRR] Replicating manifest jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/master.m3u8 from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:28:18 [Sim-CRR] Successfully replicated jobs/partition_3/job_us-east:dcb5c32e-080b-4092-8cbf-bd67880b8992/master.m3u8
+2026/06/23 10:29:20 [Sim-CRR] Replicating manifest jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/job_completed.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:29:20 [Sim-CRR] Successfully replicated jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/job_completed.json
+2026/06/23 10:29:20 [Sim-CRR] Replicating manifest jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/job_manifest.json from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:29:20 [Sim-CRR] Successfully replicated jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/job_manifest.json
+2026/06/23 10:29:20 [Sim-CRR] Replicating manifest jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/manifest.mpd from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:29:20 [Sim-CRR] Successfully replicated jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/manifest.mpd
+2026/06/23 10:29:20 [Sim-CRR] Replicating manifest jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/master.m3u8 from bucket transcoder-us-east to transcoder-eu-west
+2026/06/23 10:29:20 [Sim-CRR] Successfully replicated jobs/partition_0/job_us-east:bd6ac5ef-3f62-4cea-9b9b-207e782e48e0/master.m3u8
