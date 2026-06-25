@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/distributed-transcoder/internal/models"
@@ -159,9 +158,8 @@ func (pm *PartitionManager) streamSlice(ctx context.Context, jobID string, prefi
 	)
 
 	// Ensure process dies if coordinator crashes
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	cmd.SysProcAttr = platformSysProcAttr()
+	go platformParentWatchdog(sliceCtx, cmd)
 
 	pw, err := cmd.StdinPipe()
 	if err != nil {
@@ -213,6 +211,8 @@ func (pm *PartitionManager) downloadAndSlice(ctx context.Context, jobID string, 
 	defer fsCancel()
 
 	fsCmd := exec.CommandContext(fsCtx, "ffmpeg", "-y", "-i", rawFile.Name(), "-c", "copy", "-movflags", "+faststart", faststartPath)
+	fsCmd.SysProcAttr = platformSysProcAttr()
+	go platformParentWatchdog(fsCtx, fsCmd)
 	if err := fsCmd.Run(); err != nil {
 		return 0, fmt.Errorf("faststart relocation failed: %w", err)
 	}
@@ -231,6 +231,8 @@ func (pm *PartitionManager) downloadAndSlice(ctx context.Context, jobID string, 
 		"-reset_timestamps", "1",
 		filepath.Join(tempDir, "chunk_%03d.mp4"),
 	)
+	cmd.SysProcAttr = platformSysProcAttr()
+	go platformParentWatchdog(sliceCtx, cmd)
 	if err := cmd.Run(); err != nil {
 		return 0, fmt.Errorf("ffmpeg slicing of faststart file failed: %w", err)
 	}
