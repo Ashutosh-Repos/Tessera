@@ -14,6 +14,7 @@ type Config struct {
 	Role   string `yaml:"role"`    // gateway | coordinator | worker
 	Region string `yaml:"region"`  // e.g. "us-east-1"
 	NodeID string `yaml:"node_id"` // unique per-node identifier
+	MessageBusProvider string `yaml:"message_bus_provider"` // "nats" | "sqs"
 
 	// Infrastructure Endpoints
 	Redis       RedisConfig       `yaml:"redis"`
@@ -154,6 +155,9 @@ func LoadConfig(path string) (Config, error) {
 	}
 	if addr := os.Getenv("TRANSCODER_LISTEN_ADDR"); addr != "" {
 		cfg.Gateway.ListenAddr = addr
+	}
+	if mbProv := os.Getenv("TRANSCODER_MESSAGE_BUS_PROVIDER"); mbProv != "" {
+		cfg.MessageBusProvider = mbProv
 	}
 
 	// Propagate NodeID to worker config to avoid LLD B-7 compile errors

@@ -28,6 +28,8 @@ type Coordination interface {
 
 	// Health
 	Ping(ctx context.Context) error
+
+	Close() error
 }
 
 type CoordinatorEvent struct {

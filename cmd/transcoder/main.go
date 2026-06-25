@@ -45,7 +45,7 @@ func init() {
 	rootCmd.AddCommand(serverCmd)
 }
 
-func initInfra(cfg *config.Config, role string, needsNATS, needsEtcd bool) (context.Context, context.CancelFunc, *infra.RedisStore, *infra.NATSBus, *infra.EtcdClient, *infra.S3Client) {
+func initInfra(cfg *config.Config, role string, needsBus, needsEtcd bool) (context.Context, context.CancelFunc, infra.StateStore, infra.MessageBus, infra.Coordination, infra.ObjectStore) {
 	if cfg.NodeID == "" {
 		cfg.NodeID = fmt.Sprintf("%s-node-%d", role, time.Now().UnixNano())
 	}
@@ -71,18 +71,25 @@ func initInfra(cfg *config.Config, role string, needsNATS, needsEtcd bool) (cont
 		log.Fatalf("failed to init redis: %v", err)
 	}
 	
-	var messageBus *infra.NATSBus
-	if needsNATS {
-		messageBus, err = infra.NewNATSBus(cfg.NATS)
-		if err != nil {
-			log.Fatalf("failed to init NATS: %v", err)
+	var messageBus infra.MessageBus
+	if needsBus {
+		if cfg.MessageBusProvider == "sqs" {
+			messageBus, err = infra.NewSQSBus(cfg.ObjectStore)
+			if err != nil {
+				log.Fatalf("failed to init SQS: %v", err)
+			}
+		} else {
+			messageBus, err = infra.NewNATSBus(cfg.NATS)
+			if err != nil {
+				log.Fatalf("failed to init NATS: %v", err)
+			}
 		}
 		if err := messageBus.InitEcosystem(cfg.Coordinator.NATSShardCount); err != nil {
-			log.Fatalf("failed to init NATS JetStream ecosystem: %v", err)
+			log.Fatalf("failed to init message bus ecosystem: %v", err)
 		}
 	}
 	
-	var coord *infra.EtcdClient
+	var coord infra.Coordination
 	if needsEtcd {
 		coord, err = infra.NewEtcdClient(cfg.Etcd)
 		if err != nil {

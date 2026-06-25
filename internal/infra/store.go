@@ -61,6 +61,8 @@ type StateStore interface {
 	// Worker registry
 	RegisterWorker(ctx context.Context, workerID string, info map[string]interface{}, ttlSec int) error
 	GetActiveWorkers(ctx context.Context) (map[string]map[string]string, error)
+
+	Close() error
 }
 
 type CompletionPipelineParams struct {

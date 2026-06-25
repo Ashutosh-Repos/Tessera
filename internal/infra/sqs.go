@@ -351,6 +351,11 @@ func (s *SQSBus) pollEventsLoop(ctx context.Context, queueURL string, filterTag 
 	}
 }
 
+func (s *SQSBus) Close() error {
+	// SQS client does not maintain persistent stateful connections that require explicit closing.
+	return nil
+}
+
 // SQSTaskMessage wraps an AWS SQS message to satisfy infra.TaskMessage.
 type SQSTaskMessage struct {
 	client   *sqs.Client

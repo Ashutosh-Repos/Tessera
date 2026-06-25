@@ -28,6 +28,8 @@ type MessageBus interface {
 
 	// Health
 	Ping(ctx context.Context) error
+
+	Close() error
 }
 
 // TaskMessage wraps a NATS JetStream message.
