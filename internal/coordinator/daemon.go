@@ -66,7 +66,11 @@ func (c *CoordinatorDaemon) Run(ctx context.Context) {
 			case <-ctx.Done():
 				log.Printf("[DEBUG-COORD] Ring Watcher goroutine exiting (context cancelled)")
 				return
-			case evt := <-events:
+			case evt, ok := <-events:
+				if !ok {
+					log.Printf("[DEBUG-COORD] Ring Watcher channel closed, exiting")
+					return
+				}
 				log.Printf("[DEBUG-COORD] Ring Watcher received event: type=%d, node=%s", evt.Type, evt.NodeID)
 				switch evt.Type {
 				case infra.EventTypePut:

@@ -11,16 +11,18 @@ import (
 )
 
 type RateLimiter struct {
-	state       infra.StateStore
-	limitPerIP  int
+	state        infra.StateStore
+	limitPerIP   int
 	limitPerUser int
+	jwtSecret    string
 }
 
-func NewRateLimiter(state infra.StateStore, limitPerIP, limitPerUser int) *RateLimiter {
+func NewRateLimiter(state infra.StateStore, limitPerIP, limitPerUser int, jwtSecret string) *RateLimiter {
 	return &RateLimiter{
-		state:       state,
-		limitPerIP:  limitPerIP,
+		state:        state,
+		limitPerIP:   limitPerIP,
 		limitPerUser: limitPerUser,
+		jwtSecret:    jwtSecret,
 	}
 }
 
@@ -45,8 +47,10 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 				tokenStr := authHeader[7:]
-				token, _, err := new(jwt.Parser).ParseUnverified(tokenStr, jwt.MapClaims{})
-				if err == nil {
+				token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+					return []byte(rl.jwtSecret), nil
+				})
+				if err == nil && token.Valid {
 					if claims, ok := token.Claims.(jwt.MapClaims); ok {
 						jobID := ""
 						if sub, ok := claims["sub"].(string); ok {

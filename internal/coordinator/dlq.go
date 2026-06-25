@@ -25,8 +25,8 @@ func (c *CoordinatorDaemon) runDLQMonitor(ctx context.Context) {
 		// Check if we own the partition for this job
 		if c.ring.OwnerOf(task.PartitionID) != c.nodeID {
 			// Another coordinator owns this partition, let them handle it.
-			// Nak immediately so the owning coordinator can pick it up.
-			msg.Nak()
+			// Nak with delay so the owning coordinator can pick it up without spinning.
+			msg.NakWithDelay(2 * time.Second)
 			return
 		}
 
@@ -57,7 +57,13 @@ func (c *CoordinatorDaemon) runDLQMonitor(ctx context.Context) {
 					return
 				case <-timer.C:
 					payload, _ := json.Marshal(t)
-					shard := t.PartitionID / (c.cfg.Coordinator.PartitionCount / c.cfg.Coordinator.NATSShardCount)
+					denominator := c.cfg.Coordinator.PartitionCount / c.cfg.Coordinator.NATSShardCount
+					var shard int
+					if denominator <= 0 {
+						shard = t.PartitionID % c.cfg.Coordinator.NATSShardCount
+					} else {
+						shard = t.PartitionID / denominator
+					}
 					if err := c.bus.PublishTaskAsync(context.Background(), shard, t.Priority, payload); err != nil {
 						log.Printf("DLQ monitor: failed to republish task: %v", err)
 						return

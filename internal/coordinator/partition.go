@@ -147,10 +147,30 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 		data, _ := json.Marshal(manifest)
 		pm.coord.state.CacheManifest(ctx, jobID, data)
 
+		if manifest.SegmentCount == 0 {
+			log.Printf("partition %d: adopted job %s is not yet sliced. Triggering slicing.", pm.partitionID, jobID)
+			pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
+				"state":        string(models.JobPhaseCreated),
+				"completed":    0,
+				"total":        0,
+				"partition":    pm.partitionID,
+				"last_updated": time.Now().Unix(),
+			})
+			go pm.sliceAndDispatch(ctx, jobID)
+			continue
+		}
+
 		// Count transcoded segments to rebuild bitmap
 		transPrefix := fmt.Sprintf("jobs/partition_%d/job_%s/transcoded/", pm.partitionID, jobID)
 		transKeys, _ := pm.coord.objStore.ListObjectsPrefix(ctx, transPrefix)
-		completed := len(transKeys)
+		var validTransKeys []string
+		for _, tk := range transKeys {
+			base := filepath.Base(tk)
+			if strings.HasPrefix(base, "segment_") && strings.HasSuffix(base, ".ts") {
+				validTransKeys = append(validTransKeys, tk)
+			}
+		}
+		completed := len(validTransKeys)
 
 		totalTasks := manifest.TotalTasks
 		if totalTasks == 0 && manifest.SegmentCount > 0 {
@@ -169,7 +189,7 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 		})
 
 		// Rebuild bitmap from S3 object existence
-		for _, tk := range transKeys {
+		for _, tk := range validTransKeys {
 			seg, res := parseSegmentKey(tk)
 			bitIdx := seg*len(models.AllResolutions) + resolutionOffset(res)
 			pm.coord.state.SetBit(ctx, jobID, bitIdx)

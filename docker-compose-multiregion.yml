@@ -92,6 +92,9 @@ services:
       mc mb myminio-eu/transcoder-eu-west;
       mc anonymous set public myminio-us/transcoder-us-east;
       mc anonymous set public myminio-eu/transcoder-eu-west;
+      echo '{\"CORSRules\":[{\"AllowedOrigins\":[\"*\"],\"AllowedMethods\":[\"GET\",\"PUT\",\"POST\",\"HEAD\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"]}]}' > /tmp/cors.json;
+      mc cors set myminio-us/transcoder-us-east /tmp/cors.json;
+      mc cors set myminio-eu/transcoder-eu-west /tmp/cors.json;
       exit 0;
       "
 

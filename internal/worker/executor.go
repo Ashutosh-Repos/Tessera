@@ -36,8 +36,16 @@ func NewTaskExecutor(state infra.StateStore, objStore infra.ObjectStore, cfg con
 
 func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task models.SegmentTask) error {
 	// ──── Step 1: Disk Quota Check ────
+	if err := os.MkdirAll(te.cfg.Worker.ScratchDir, 0755); err != nil {
+		msg.Nak()
+		return fmt.Errorf("failed to create scratch directory: %w", err)
+	}
+
 	var stat syscall.Statfs_t
-	syscall.Statfs(te.cfg.Worker.ScratchDir, &stat)
+	if err := syscall.Statfs(te.cfg.Worker.ScratchDir, &stat); err != nil {
+		msg.Nak()
+		return fmt.Errorf("failed to stat scratch dir: %w", err)
+	}
 	freeGB := (stat.Bavail * uint64(stat.Bsize)) / (1024 * 1024 * 1024)
 	if freeGB < uint64(te.cfg.Worker.MinDiskFreeGB) {
 		msg.Nak() // re-queue to another worker
@@ -100,6 +108,7 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 
 	// ──── Step 7: Run FFmpeg ────
 	if err := cmd.Start(); err != nil {
+		transcodeCancel()
 		<-watchdogDone
 		<-heartbeatDone
 		// Don't ACK — let NATS AckWait redeliver

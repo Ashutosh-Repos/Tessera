@@ -3,6 +3,8 @@ package infra
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/distributed-transcoder/internal/config"
@@ -240,6 +242,125 @@ func (r *RedisStore) ExpireJobKeys(ctx context.Context, jobID string, ttlSec int
 
 func (r *RedisStore) Ping(ctx context.Context) error {
 	return r.client.Ping(ctx).Err()
+}
+
+func (r *RedisStore) ScanJobKeys(ctx context.Context) ([]string, error) {
+	var keys []string
+	var mu sync.Mutex
+
+	scanNode := func(ctx context.Context, client *redis.Client) error {
+		var cursor uint64
+		for {
+			var k []string
+			var err error
+			k, cursor, err = client.Scan(ctx, cursor, "job:{*}:status", 100).Result()
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			keys = append(keys, k...)
+			mu.Unlock()
+			if cursor == 0 {
+				break
+			}
+		}
+		return nil
+	}
+
+	switch c := r.client.(type) {
+	case *redis.ClusterClient:
+		err := c.ForEachMaster(ctx, scanNode)
+		if err != nil {
+			return nil, err
+		}
+	case *redis.Client:
+		err := scanNode(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		// Fallback to direct client Scan if it's some other UniversalClient type
+		var cursor uint64
+		for {
+			k, nextCursor, err := r.client.Scan(ctx, cursor, "job:{*}:status", 100).Result()
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, k...)
+			cursor = nextCursor
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+	return keys, nil
+}
+
+func (r *RedisStore) RegisterWorker(ctx context.Context, workerID string, info map[string]interface{}, ttlSec int) error {
+	key := fmt.Sprintf("worker:%s", workerID)
+	pipe := r.client.Pipeline()
+	pipe.HSet(ctx, key, info)
+	pipe.Expire(ctx, key, time.Duration(ttlSec)*time.Second)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (r *RedisStore) GetActiveWorkers(ctx context.Context) (map[string]map[string]string, error) {
+	var keys []string
+	var mu sync.Mutex
+
+	scanNode := func(ctx context.Context, client *redis.Client) error {
+		var cursor uint64
+		for {
+			var k []string
+			var err error
+			k, cursor, err = client.Scan(ctx, cursor, "worker:*", 100).Result()
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			keys = append(keys, k...)
+			mu.Unlock()
+			if cursor == 0 {
+				break
+			}
+		}
+		return nil
+	}
+
+	var err error
+	switch c := r.client.(type) {
+	case *redis.ClusterClient:
+		err = c.ForEachMaster(ctx, scanNode)
+	case *redis.Client:
+		err = scanNode(ctx, c)
+	default:
+		var cursor uint64
+		for {
+			var k []string
+			k, cursor, err = r.client.Scan(ctx, cursor, "worker:*", 100).Result()
+			if err != nil {
+				break
+			}
+			keys = append(keys, k...)
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	workers := make(map[string]map[string]string)
+	for _, key := range keys {
+		workerID := strings.TrimPrefix(key, "worker:")
+		fields, err := r.client.HGetAll(ctx, key).Result()
+		if err == nil && len(fields) > 0 {
+			workers[workerID] = fields
+		}
+	}
+	return workers, nil
 }
 
 // Close releases the Redis connection pool.

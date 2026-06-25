@@ -66,7 +66,13 @@ func (pm *PartitionManager) sliceAndDispatch(ctx context.Context, jobID string) 
 				Priority:    "normal",
 			}
 			payload, _ := json.Marshal(task)
-			shard := pm.partitionID / (pm.coord.cfg.Coordinator.PartitionCount / pm.coord.cfg.Coordinator.NATSShardCount)
+			denominator := pm.coord.cfg.Coordinator.PartitionCount / pm.coord.cfg.Coordinator.NATSShardCount
+			var shard int
+			if denominator <= 0 {
+				shard = pm.partitionID % pm.coord.cfg.Coordinator.NATSShardCount
+			} else {
+				shard = pm.partitionID / denominator
+			}
 			pm.coord.bus.PublishTaskAsync(ctx, shard, task.Priority, payload)
 		}
 	}

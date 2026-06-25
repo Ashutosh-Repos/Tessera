@@ -169,6 +169,9 @@ func (n *NATSBus) SubscribeDLQ(ctx context.Context, handler func(msg TaskMessage
 }
 
 func (n *NATSBus) Ping(ctx context.Context) error {
+	if n == nil || n.nc == nil {
+		return fmt.Errorf("nats bus not initialized")
+	}
 	if n.nc.IsClosed() {
 		return fmt.Errorf("nats connection is closed")
 	}
@@ -190,6 +193,10 @@ func (m *NATSTaskMessage) Ack() error {
 
 func (m *NATSTaskMessage) Nak() error {
 	return m.msg.Nak()
+}
+
+func (m *NATSTaskMessage) NakWithDelay(delay time.Duration) error {
+	return m.msg.NakWithDelay(delay)
 }
 
 func (m *NATSTaskMessage) InProgress() error {
@@ -243,6 +250,17 @@ func (n *NATSBus) InitEcosystem(shardCount int) error {
 	}
 
 	return nil
+}
+
+func (n *NATSBus) GetDLQDepth() (int64, error) {
+	if n == nil || n.js == nil {
+		return 0, fmt.Errorf("nats bus/jetstream not initialized")
+	}
+	info, err := n.js.StreamInfo("transcode-tasks-dlq")
+	if err != nil {
+		return 0, err
+	}
+	return int64(info.State.Msgs), nil
 }
 
 // Close drains pending publishes and closes the NATS connection gracefully.

@@ -117,10 +117,17 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 		"state":        string(models.JobPhaseCompleted),
 		"last_updated": time.Now().Unix(),
 	})
+
+	schema := "http"
+	if pm.coord.cfg.ObjectStore.UseSSL {
+		schema = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s/%s", schema, pm.coord.cfg.ObjectStore.Endpoint, pm.coord.cfg.ObjectStore.Bucket)
+
 	pm.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{
 		Phase:   models.JobPhaseCompleted,
-		HLSURL:  fmt.Sprintf("https://cdn.example.com/%smaster.m3u8", prefix),
-		DASHURL: fmt.Sprintf("https://cdn.example.com/%smanifest.mpd", prefix),
+		HLSURL:  fmt.Sprintf("%s/%smaster.m3u8", baseURL, prefix),
+		DASHURL: fmt.Sprintf("%s/%smanifest.mpd", baseURL, prefix),
 	})
 
 	// 10. Cleanup active jobs tracking in partition

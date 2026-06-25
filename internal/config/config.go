@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -117,6 +118,41 @@ func LoadConfig(path string) (Config, error) {
 	err = yaml.Unmarshal(data, &cfg)
 	if err != nil {
 		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	// Environment variable overrides for production configurations
+	if addrs := os.Getenv("TRANSCODER_REDIS_ADDRS"); addrs != "" {
+		cfg.Redis.Addrs = strings.Split(addrs, ",")
+	}
+	if password := os.Getenv("TRANSCODER_REDIS_PASSWORD"); password != "" {
+		cfg.Redis.Password = password
+	}
+	if urls := os.Getenv("TRANSCODER_NATS_URLS"); urls != "" {
+		cfg.NATS.URLs = strings.Split(urls, ",")
+	}
+	if eps := os.Getenv("TRANSCODER_ETCD_ENDPOINTS"); eps != "" {
+		cfg.Etcd.Endpoints = strings.Split(eps, ",")
+	}
+	if s3Ep := os.Getenv("TRANSCODER_S3_ENDPOINT"); s3Ep != "" {
+		cfg.ObjectStore.Endpoint = s3Ep
+	}
+	if s3Key := os.Getenv("TRANSCODER_S3_ACCESS_KEY"); s3Key != "" {
+		cfg.ObjectStore.AccessKey = s3Key
+	}
+	if s3Sec := os.Getenv("TRANSCODER_S3_SECRET_KEY"); s3Sec != "" {
+		cfg.ObjectStore.SecretKey = s3Sec
+	}
+	if s3Bkt := os.Getenv("TRANSCODER_S3_BUCKET"); s3Bkt != "" {
+		cfg.ObjectStore.Bucket = s3Bkt
+	}
+	if jwtSec := os.Getenv("TRANSCODER_JWT_SECRET"); jwtSec != "" {
+		cfg.Gateway.JWTSecret = jwtSec
+	}
+	if reg := os.Getenv("TRANSCODER_REGION"); reg != "" {
+		cfg.Region = reg
+	}
+	if addr := os.Getenv("TRANSCODER_LISTEN_ADDR"); addr != "" {
+		cfg.Gateway.ListenAddr = addr
 	}
 
 	// Propagate NodeID to worker config to avoid LLD B-7 compile errors

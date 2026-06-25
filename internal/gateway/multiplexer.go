@@ -27,6 +27,19 @@ func NewProgressMultiplexer(state infra.StateStore, blockMs int) *ProgressMultip
 	}
 }
 
+func (pm *ProgressMultiplexer) ActiveSubscriberCount() int {
+	if pm == nil {
+		return 0
+	}
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	count := 0
+	for _, subs := range pm.subscribers {
+		count += len(subs)
+	}
+	return count
+}
+
 // Subscribe adds a WebSocket channel to receive updates for a specific job.
 func (pm *ProgressMultiplexer) Subscribe(jobID string, ch chan<- models.ProgressUpdate) {
 	pm.mu.Lock()

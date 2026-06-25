@@ -40,14 +40,14 @@ func TestEndToEndWorkflow(t *testing.T) {
 		},
 		ObjectStore: config.ObjectStoreConfig{
 			Endpoint:  "127.0.0.1:9000",
-			Bucket:    "transcoder",
+			Bucket:    "transcoder-us-east",
 			Region:    "us-east-1",
 			AccessKey: "minioadmin",
 			SecretKey: "minioadmin",
 			UseSSL:    false,
 		},
 		Gateway: config.GatewayConfig{
-			ListenAddr:       "127.0.0.1:8080",
+			ListenAddr:       "127.0.0.1:8085",
 			JWTSecret:        "testsecret",
 			MaxUploadSizeGB:  5,
 			RateLimitPerIP:   1000,
@@ -159,7 +159,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	defer cancelDaemons()
 
 	// Boot Ingest Gateway
-	gwDaemon := gateway.NewGatewayDaemon(cfg, stateStore, objStore)
+	gwDaemon := gateway.NewGatewayDaemon(cfg, stateStore, objStore, messageBus)
 	go func() {
 		if err := gwDaemon.Run(daemonCtx); err != nil && err != http.ErrServerClosed {
 			log.Printf("Gateway shutdown with error: %v", err)
@@ -189,7 +189,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 	reqData, _ := json.Marshal(createReq)
 
-	resp, err := http.Post("http://127.0.0.1:8080/api/jobs/upload-session", "application/json", bytes.NewReader(reqData))
+	resp, err := http.Post("http://127.0.0.1:8085/api/jobs/upload-session", "application/json", bytes.NewReader(reqData))
 	if err != nil {
 		t.Fatalf("failed to POST upload-session: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 
 	// 6. Generate presigned PUT URL and upload video payload
 	client := &http.Client{}
-	reqURL := fmt.Sprintf("http://127.0.0.1:8080/api/jobs/%s/urls?start=1&count=1", session.JobID)
+	reqURL := fmt.Sprintf("http://127.0.0.1:8085/api/jobs/%s/urls?start=1&count=1", session.JobID)
 	reqBatch, err := http.NewRequest("POST", reqURL, nil)
 	if err != nil {
 		t.Fatalf("failed to build request for presigned URLs: %v", err)
@@ -289,7 +289,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 	completeData, _ := json.Marshal(completePayload)
 
-	completeReq, err := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:8080/api/jobs/%s/complete", session.JobID), bytes.NewReader(completeData))
+	completeReq, err := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:8085/api/jobs/%s/complete", session.JobID), bytes.NewReader(completeData))
 	if err != nil {
 		t.Fatalf("failed to build complete upload request: %v", err)
 	}

@@ -16,21 +16,40 @@ type GatewayDaemon struct {
 	cfg         config.Config
 	state       infra.StateStore
 	objectStore infra.ObjectStore
+	messageBus  *infra.NATSBus
 	multiplexer *ProgressMultiplexer
+	uploadCount int64
 }
 
-func NewGatewayDaemon(cfg config.Config, state infra.StateStore, objectStore infra.ObjectStore) *GatewayDaemon {
+func NewGatewayDaemon(cfg config.Config, state infra.StateStore, objectStore infra.ObjectStore, messageBus *infra.NATSBus) *GatewayDaemon {
 	return &GatewayDaemon{
 		cfg:         cfg,
 		state:       state,
 		objectStore: objectStore,
+		messageBus:  messageBus,
 	}
+}
+
+// corsMiddleware adds standard CORS headers to responses
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Run is the gateway's main entry point.
 func (g *GatewayDaemon) Run(ctx context.Context) error {
 	// 1. Initialize Rate Limiter
-	rl := NewRateLimiter(g.state, g.cfg.Gateway.RateLimitPerIP, g.cfg.Gateway.RateLimitPerUser)
+	rl := NewRateLimiter(g.state, g.cfg.Gateway.RateLimitPerIP, g.cfg.Gateway.RateLimitPerUser, g.cfg.Gateway.JWTSecret)
 
 	// 2. Start Progress Multiplexer
 	g.multiplexer = NewProgressMultiplexer(g.state, g.cfg.Gateway.MultiplexBatchMs)
@@ -45,9 +64,12 @@ func (g *GatewayDaemon) Run(ctx context.Context) error {
 	router.HandleFunc("GET /api/jobs/{uuid}/status", g.handleGetStatus)
 	router.HandleFunc("GET /progress/{uuid}", g.handleWebSocketOrSSE)
 	router.HandleFunc("GET /health", g.handleHealth)
+	router.HandleFunc("GET /api/admin/jobs", g.handleListJobs)
+	router.HandleFunc("GET /api/admin/regions", g.handleListRegions)
+	router.HandleFunc("GET /api/admin/coordinators", g.handleListCoordinators)
 
-	// Apply rate limiting middleware
-	handler := rl.Middleware(router)
+	// Apply rate limiting and CORS middleware
+	handler := corsMiddleware(rl.Middleware(router))
 
 	// 4. Start HTTP Server
 	srv := &http.Server{

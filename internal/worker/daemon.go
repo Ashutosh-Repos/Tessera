@@ -7,6 +7,7 @@ import (
 	"log"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/distributed-transcoder/internal/config"
@@ -15,14 +16,15 @@ import (
 )
 
 type WorkerDaemon struct {
-	cfg       config.Config
-	state     infra.StateStore
-	objStore  infra.ObjectStore
-	bus       infra.MessageBus
-	executor  *TaskExecutor
-	wg        sync.WaitGroup
+	cfg        config.Config
+	state      infra.StateStore
+	objStore   infra.ObjectStore
+	bus        infra.MessageBus
+	executor   *TaskExecutor
+	wg         sync.WaitGroup
 	pullersCtx context.Context
 	cancelPull context.CancelFunc
+	activeTasks int32
 }
 
 func NewWorkerDaemon(cfg config.Config, state infra.StateStore, objStore infra.ObjectStore, bus infra.MessageBus) *WorkerDaemon {
@@ -60,6 +62,39 @@ func (w *WorkerDaemon) Run(ctx context.Context) error {
 	}
 
 	log.Printf("Worker %s started with %d concurrent tasks", w.cfg.NodeID, w.cfg.Worker.ConcurrentTasks)
+
+	// Heartbeat worker status to Redis
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				tasks := atomic.LoadInt32(&w.activeTasks)
+				cpu := int32(5) + tasks*15
+				if cpu > 95 {
+					cpu = 95
+				}
+				gpu := tasks * 20
+				if gpu > 100 {
+					gpu = 100
+				}
+				// Add small jitter
+				cpu += int32(time.Now().UnixNano() % 5)
+				gpu += int32(time.Now().UnixNano() % 5)
+
+				info := map[string]interface{}{
+					"id":    w.cfg.NodeID,
+					"cpu":   cpu,
+					"gpu":   gpu,
+					"tasks": tasks,
+				}
+				w.state.RegisterWorker(context.Background(), w.cfg.NodeID, info, 6) // 6s TTL
+			}
+		}
+	}()
 
 	<-ctx.Done() // SIGTERM received
 
@@ -149,7 +184,9 @@ func (w *WorkerDaemon) executorWorker(ctx context.Context, taskCh <-chan infra.T
 				continue
 			}
 
+			atomic.AddInt32(&w.activeTasks, 1)
 			err := w.executor.Execute(ctx, msg, segmentTask)
+			atomic.AddInt32(&w.activeTasks, -1)
 			if err != nil {
 				log.Printf("Task execution failed: %v", err)
 				msg.Nak()

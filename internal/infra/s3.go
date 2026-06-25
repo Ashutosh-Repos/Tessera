@@ -32,6 +32,9 @@ type ObjectStore interface {
 
 	// Listing
 	ListObjectsPrefix(ctx context.Context, prefix string) ([]string, error)
+
+	// Health check
+	Ping(ctx context.Context) error
 }
 
 type CompletedPart struct {
@@ -258,4 +261,14 @@ func (s *S3Client) ListObjectsPrefix(ctx context.Context, prefix string) ([]stri
 		}
 	}
 	return keys, nil
+}
+
+func (s *S3Client) Ping(ctx context.Context) error {
+	if s == nil || s.client == nil {
+		return fmt.Errorf("s3 client not initialized")
+	}
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(s.bucket),
+	})
+	return err
 }

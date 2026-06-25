@@ -45,7 +45,7 @@ func init() {
 	rootCmd.AddCommand(serverCmd)
 }
 
-func initInfra(cfg *config.Config, role string) (context.Context, context.CancelFunc, *infra.RedisStore, *infra.NATSBus, *infra.EtcdClient, *infra.S3Client) {
+func initInfra(cfg *config.Config, role string, needsNATS, needsEtcd bool) (context.Context, context.CancelFunc, *infra.RedisStore, *infra.NATSBus, *infra.EtcdClient, *infra.S3Client) {
 	if cfg.NodeID == "" {
 		cfg.NodeID = fmt.Sprintf("%s-node-%d", role, time.Now().UnixNano())
 	}
@@ -70,17 +70,26 @@ func initInfra(cfg *config.Config, role string) (context.Context, context.Cancel
 	if err != nil {
 		log.Fatalf("failed to init redis: %v", err)
 	}
-	messageBus, err := infra.NewNATSBus(cfg.NATS)
-	if err != nil {
-		log.Fatalf("failed to init NATS: %v", err)
+	
+	var messageBus *infra.NATSBus
+	if needsNATS {
+		messageBus, err = infra.NewNATSBus(cfg.NATS)
+		if err != nil {
+			log.Fatalf("failed to init NATS: %v", err)
+		}
+		if err := messageBus.InitEcosystem(cfg.Coordinator.NATSShardCount); err != nil {
+			log.Fatalf("failed to init NATS JetStream ecosystem: %v", err)
+		}
 	}
-	if err := messageBus.InitEcosystem(cfg.Coordinator.NATSShardCount); err != nil {
-		log.Fatalf("failed to init NATS JetStream ecosystem: %v", err)
+	
+	var coord *infra.EtcdClient
+	if needsEtcd {
+		coord, err = infra.NewEtcdClient(cfg.Etcd)
+		if err != nil {
+			log.Fatalf("failed to init etcd: %v", err)
+		}
 	}
-	coord, err := infra.NewEtcdClient(cfg.Etcd)
-	if err != nil {
-		log.Fatalf("failed to init etcd: %v", err)
-	}
+
 	objectStore, err := infra.NewS3Client(cfg.ObjectStore)
 	if err != nil {
 		log.Fatalf("failed to init s3: %v", err)
@@ -97,10 +106,12 @@ var gatewayCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
-		ctx, cancel, stateStore, _, _, objectStore := initInfra(cfg, "gateway")
+		ctx, cancel, stateStore, messageBus, _, objectStore := initInfra(&cfg, "gateway", true, false)
 		defer cancel()
+		if stateStore != nil { defer stateStore.Close() }
+		if messageBus != nil { defer messageBus.Close() }
 
-		daemon := gateway.NewGatewayDaemon(cfg, stateStore, objectStore)
+		daemon := gateway.NewGatewayDaemon(cfg, stateStore, objectStore, messageBus)
 		if err := daemon.Run(ctx); err != nil {
 			log.Fatalf("gateway error: %v", err)
 		}
@@ -115,8 +126,11 @@ var coordinatorCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
-		ctx, cancel, stateStore, messageBus, coord, objectStore := initInfra(cfg, "coordinator")
+		ctx, cancel, stateStore, messageBus, coord, objectStore := initInfra(&cfg, "coordinator", true, true)
 		defer cancel()
+		if stateStore != nil { defer stateStore.Close() }
+		if messageBus != nil { defer messageBus.Close() }
+		if coord != nil { defer coord.Close() }
 
 		daemon := coordinator.NewCoordinatorDaemon(cfg, cfg.NodeID, stateStore, messageBus, coord, objectStore)
 		daemon.Run(ctx)
@@ -131,8 +145,10 @@ var workerCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
-		ctx, cancel, stateStore, messageBus, _, objectStore := initInfra(cfg, "worker")
+		ctx, cancel, stateStore, messageBus, _, objectStore := initInfra(&cfg, "worker", true, false)
 		defer cancel()
+		if stateStore != nil { defer stateStore.Close() }
+		if messageBus != nil { defer messageBus.Close() }
 
 		daemon := worker.NewWorkerDaemon(cfg, stateStore, objectStore, messageBus)
 		if err := daemon.Run(ctx); err != nil {

@@ -54,6 +54,13 @@ type StateStore interface {
 
 	// Health
 	Ping(ctx context.Context) error
+
+	// Job Listing
+	ScanJobKeys(ctx context.Context) ([]string, error)
+
+	// Worker registry
+	RegisterWorker(ctx context.Context, workerID string, info map[string]interface{}, ttlSec int) error
+	GetActiveWorkers(ctx context.Context) (map[string]map[string]string, error)
 }
 
 type CompletionPipelineParams struct {

@@ -47,6 +47,8 @@ services:
       mc alias set myminio http://minio:9000 minioadmin minioadmin;
       mc mb myminio/transcoder;
       mc anonymous set public myminio/transcoder;
+      echo '{\"CORSRules\":[{\"AllowedOrigins\":[\"*\"],\"AllowedMethods\":[\"GET\",\"PUT\",\"POST\",\"HEAD\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"]}]}' > /tmp/cors.json;
+      mc cors set myminio/transcoder /tmp/cors.json;
       exit 0;
       "
 

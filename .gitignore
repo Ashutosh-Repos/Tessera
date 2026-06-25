@@ -1,0 +1,23 @@
+# Binaries
+transcoder-bin
+transcoder-bin-test
+video-engine
+
+# Logs
+logs/
+*.log
+
+# Scratch / Temp
+scratch/
+tmp/
+temp/
+/tmp/
+
+# OS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Frontend build/dep folders inside subprojects
+**/node_modules/
+**/dist/

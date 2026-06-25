@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -59,6 +60,17 @@ func (gc *JobGCDaemon) scanForStaleJobs(ctx context.Context) {
 					Phase: models.JobPhaseFailed,
 					Error: "job timed out due to inactivity",
 				})
+
+				// Clean up raw files and slices from S3 to prevent disk leaks
+				rawPrefix := fmt.Sprintf("jobs/partition_%d/job_%s/raw/", pid, jobID)
+				if err := gc.coord.objStore.DeletePrefix(ctx, rawPrefix); err != nil {
+					log.Printf("GC Job %s: failed to clean up raw S3 files: %v", jobID, err)
+				}
+
+				// Expire Redis keys after 24h to prevent memory leaks
+				if err := gc.coord.state.ExpireJobKeys(ctx, jobID, 86400); err != nil {
+					log.Printf("GC Job %s: failed to set Redis keys expiration: %v", jobID, err)
+				}
 
 				// Remove from active jobs
 				gc.coord.state.RemoveActiveJob(ctx, pid, jobID)

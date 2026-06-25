@@ -56,15 +56,15 @@ echo "🚀 3. Booting Regional Node fleets in the background..."
 
 # --- Region A: US-East ---
 echo "     👉 Booting US-East Nodes..."
-"$WORKSPACE_DIR/transcoder-bin" -role=gateway -config="$WORKSPACE_DIR/configs/us-east.yaml" > "$LOGS_DIR/us-east-gateway.log" 2>&1 &
-"$WORKSPACE_DIR/transcoder-bin" -role=coordinator -config="$WORKSPACE_DIR/configs/us-east.yaml" > "$LOGS_DIR/us-east-coordinator.log" 2>&1 &
-"$WORKSPACE_DIR/transcoder-bin" -role=worker -config="$WORKSPACE_DIR/configs/us-east.yaml" > "$LOGS_DIR/us-east-worker.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server gateway --config "$WORKSPACE_DIR/configs/us-east.yaml" --region us-east > "$LOGS_DIR/us-east-gateway.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server coordinator --config "$WORKSPACE_DIR/configs/us-east.yaml" --region us-east > "$LOGS_DIR/us-east-coordinator.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server worker --config "$WORKSPACE_DIR/configs/us-east.yaml" --region us-east > "$LOGS_DIR/us-east-worker.log" 2>&1 &
 
 # --- Region B: EU-West ---
 echo "     👉 Booting EU-West Nodes..."
-"$WORKSPACE_DIR/transcoder-bin" -role=gateway -config="$WORKSPACE_DIR/configs/eu-west.yaml" > "$LOGS_DIR/eu-west-gateway.log" 2>&1 &
-"$WORKSPACE_DIR/transcoder-bin" -role=coordinator -config="$WORKSPACE_DIR/configs/eu-west.yaml" > "$LOGS_DIR/eu-west-coordinator.log" 2>&1 &
-"$WORKSPACE_DIR/transcoder-bin" -role=worker -config="$WORKSPACE_DIR/configs/eu-west.yaml" > "$LOGS_DIR/eu-west-worker.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server gateway --config "$WORKSPACE_DIR/configs/eu-west.yaml" --region eu-west > "$LOGS_DIR/eu-west-gateway.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server coordinator --config "$WORKSPACE_DIR/configs/eu-west.yaml" --region eu-west > "$LOGS_DIR/eu-west-coordinator.log" 2>&1 &
+"$WORKSPACE_DIR/transcoder-bin" server worker --config "$WORKSPACE_DIR/configs/eu-west.yaml" --region eu-west > "$LOGS_DIR/eu-west-worker.log" 2>&1 &
 
 # 6. Start CRR Manifest Replication Simulator
 echo "🔄 4. Starting Cross-Region Replication (CRR) Simulator..."

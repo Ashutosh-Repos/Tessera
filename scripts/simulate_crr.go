@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -115,13 +117,37 @@ func replicateDirection(ctx context.Context, srcClient *s3.Client, srcBucket str
 			continue
 		}
 
-		// Check if it already exists in the destination bucket
-		_, err := dstClient.HeadObject(ctx, &s3.HeadObjectInput{
+		// Check if it already exists in the destination bucket and compare metadata
+		needReplicate := true
+		dstMeta, err := dstClient.HeadObject(ctx, &s3.HeadObjectInput{
 			Bucket: aws.String(dstBucket),
 			Key:    aws.String(key),
 		})
 		if err == nil {
-			// Object already exists in destination, skip it
+			srcSize := int64(0)
+			if obj.Size != nil {
+				srcSize = *obj.Size
+			}
+			dstSize := int64(0)
+			if dstMeta.ContentLength != nil {
+				dstSize = *dstMeta.ContentLength
+			}
+
+			srcETag := ""
+			if obj.ETag != nil {
+				srcETag = strings.Trim(*obj.ETag, "\"")
+			}
+			dstETag := ""
+			if dstMeta.ETag != nil {
+				dstETag = strings.Trim(*dstMeta.ETag, "\"")
+			}
+
+			if srcSize == dstSize && srcETag == dstETag && srcETag != "" {
+				needReplicate = false
+			}
+		}
+
+		if !needReplicate {
 			continue
 		}
 

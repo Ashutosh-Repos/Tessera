@@ -19,6 +19,7 @@ type Coordination interface {
 	Register(ctx context.Context, nodeID string, leaseTTLSec int) (leaseID int64, err error)
 	Deregister(ctx context.Context, nodeID string) error
 	WatchCoordinators(ctx context.Context) (<-chan CoordinatorEvent, error)
+	GetCoordinators(ctx context.Context) ([]string, error)
 
 	// Slicing Locks
 	AcquireSlicingLock(ctx context.Context, jobID string, ownerID string, ttlSec int) (bool, error)
@@ -219,12 +220,34 @@ func (e *EtcdClient) KeepAliveLock(ctx context.Context, leaseID int64) error {
 }
 
 func (e *EtcdClient) Ping(ctx context.Context) error {
+	if e == nil || e.client == nil {
+		return fmt.Errorf("etcd client not initialized")
+	}
 	// Status on first endpoint
 	if len(e.client.Endpoints()) > 0 {
 		_, err := e.client.Status(ctx, e.client.Endpoints()[0])
 		return err
 	}
 	return fmt.Errorf("no etcd endpoints configured")
+}
+
+func (e *EtcdClient) GetCoordinators(ctx context.Context) ([]string, error) {
+	if e == nil || e.client == nil {
+		return nil, fmt.Errorf("etcd client not initialized")
+	}
+	resp, err := e.client.Get(ctx, "/coordinators/", clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	var nodeIDs []string
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+		parts := strings.Split(key, "/")
+		if len(parts) > 2 {
+			nodeIDs = append(nodeIDs, parts[2])
+		}
+	}
+	return nodeIDs, nil
 }
 
 // Close releases all etcd sessions and closes the underlying client connection.

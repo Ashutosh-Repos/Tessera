@@ -1,6 +1,9 @@
 package infra
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // MessageBus abstracts NATS JetStream operations.
 type MessageBus interface {
@@ -18,6 +21,7 @@ type MessageBus interface {
 
 	// DLQ
 	SubscribeDLQ(ctx context.Context, handler func(msg TaskMessage)) error
+	GetDLQDepth() (int64, error)
 
 	// Ecosystem initialization
 	InitEcosystem(shardCount int) error
@@ -31,6 +35,7 @@ type TaskMessage interface {
 	Data() []byte
 	Ack() error
 	Nak() error        // negative ack → immediate redelivery
+	NakWithDelay(delay time.Duration) error
 	InProgress() error // extend AckWait deadline
 	Metadata() TaskMessageMeta
 }
