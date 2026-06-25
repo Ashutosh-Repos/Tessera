@@ -16,17 +16,19 @@ type GatewayDaemon struct {
 	cfg         config.Config
 	state       infra.StateStore
 	objectStore infra.ObjectStore
-	messageBus  *infra.NATSBus
+	messageBus  infra.MessageBus
+	coord       infra.Coordination
 	multiplexer *ProgressMultiplexer
 	uploadCount int64
 }
 
-func NewGatewayDaemon(cfg config.Config, state infra.StateStore, objectStore infra.ObjectStore, messageBus *infra.NATSBus) *GatewayDaemon {
+func NewGatewayDaemon(cfg config.Config, state infra.StateStore, objectStore infra.ObjectStore, messageBus infra.MessageBus, coord infra.Coordination) *GatewayDaemon {
 	return &GatewayDaemon{
 		cfg:         cfg,
 		state:       state,
 		objectStore: objectStore,
 		messageBus:  messageBus,
+		coord:       coord,
 	}
 }
 
@@ -64,9 +66,9 @@ func (g *GatewayDaemon) Run(ctx context.Context) error {
 	router.HandleFunc("GET /api/jobs/{uuid}/status", g.handleGetStatus)
 	router.HandleFunc("GET /progress/{uuid}", g.handleWebSocketOrSSE)
 	router.HandleFunc("GET /health", g.handleHealth)
-	router.HandleFunc("GET /api/admin/jobs", g.handleListJobs)
-	router.HandleFunc("GET /api/admin/regions", g.handleListRegions)
-	router.HandleFunc("GET /api/admin/coordinators", g.handleListCoordinators)
+	router.HandleFunc("GET /api/admin/jobs", g.requireAdminAuth(g.handleListJobs))
+	router.HandleFunc("GET /api/admin/regions", g.requireAdminAuth(g.handleListRegions))
+	router.HandleFunc("GET /api/admin/coordinators", g.requireAdminAuth(g.handleListCoordinators))
 
 	// Apply rate limiting and CORS middleware
 	handler := corsMiddleware(rl.Middleware(router))

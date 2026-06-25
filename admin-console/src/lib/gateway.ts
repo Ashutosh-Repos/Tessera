@@ -28,9 +28,21 @@ export interface RegionHealth {
 
 export class GatewayClient {
   private baseUrl: string;
+  private apiKey?: string;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, apiKey?: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.apiKey = apiKey;
+  }
+
+  private getHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+    return headers;
   }
 
   async getHealth(): Promise<boolean> {
@@ -54,7 +66,9 @@ export class GatewayClient {
 
   async listJobs(): Promise<JobStatus[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/admin/jobs`);
+      const res = await fetch(`${this.baseUrl}/api/admin/jobs`, {
+        headers: this.getHeaders(),
+      });
       if (!res.ok) return [];
       return await res.json();
     } catch {
@@ -64,7 +78,9 @@ export class GatewayClient {
 
   async getRegionHealth(): Promise<RegionHealth | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/admin/regions`);
+      const res = await fetch(`${this.baseUrl}/api/admin/regions`, {
+        headers: this.getHeaders(),
+      });
       if (!res.ok) return null;
       return await res.json();
     } catch {
@@ -74,7 +90,9 @@ export class GatewayClient {
 
   async listCoordinators(): Promise<string[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/admin/coordinators`);
+      const res = await fetch(`${this.baseUrl}/api/admin/coordinators`, {
+        headers: this.getHeaders(),
+      });
       if (!res.ok) return [];
       return await res.json();
     } catch {
@@ -85,6 +103,6 @@ export class GatewayClient {
 
 // Pre-configured clients for known regions
 export const regions = {
-  'us-east': new GatewayClient('http://localhost:8080'),
-  'eu-west': new GatewayClient('http://localhost:8090'),
+  'us-east': new GatewayClient('http://localhost:8080', 'admin-secret-token'),
+  'eu-west': new GatewayClient('http://localhost:8090', 'admin-secret-token'),
 };

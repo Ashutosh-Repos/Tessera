@@ -106,12 +106,13 @@ var gatewayCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
-		ctx, cancel, stateStore, messageBus, _, objectStore := initInfra(&cfg, "gateway", true, false)
+		ctx, cancel, stateStore, messageBus, coord, objectStore := initInfra(&cfg, "gateway", true, true)
 		defer cancel()
 		if stateStore != nil { defer stateStore.Close() }
 		if messageBus != nil { defer messageBus.Close() }
+		if coord != nil { defer coord.Close() }
 
-		daemon := gateway.NewGatewayDaemon(cfg, stateStore, objectStore, messageBus)
+		daemon := gateway.NewGatewayDaemon(cfg, stateStore, objectStore, messageBus, coord)
 		if err := daemon.Run(ctx); err != nil {
 			log.Fatalf("gateway error: %v", err)
 		}

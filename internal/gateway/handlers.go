@@ -401,6 +401,24 @@ func (g *GatewayDaemon) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(jobs)
 }
 
+func (g *GatewayDaemon) requireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if g.cfg.Gateway.AdminAPIKey != "" {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			token := authHeader[7:]
+			if token != g.cfg.Gateway.AdminAPIKey {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+		next(w, r)
+	}
+}
+
 func (g *GatewayDaemon) handleListRegions(w http.ResponseWriter, r *http.Request) {
 	// Add a 2-second timeout to protect gateway API from cascading blocks when dependency services hang
 	pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -416,13 +434,9 @@ func (g *GatewayDaemon) handleListRegions(w http.ResponseWriter, r *http.Request
 	s3Ok := g.objectStore.Ping(pingCtx) == nil
 
 	etcdOk := false
-	if len(g.cfg.Etcd.Endpoints) > 0 {
-		etcdClient, err := infra.NewEtcdClient(g.cfg.Etcd)
-		if err == nil {
-			if pingErr := etcdClient.Ping(pingCtx); pingErr == nil {
-				etcdOk = true
-			}
-			etcdClient.Close()
+	if g.coord != nil {
+		if pingErr := g.coord.Ping(pingCtx); pingErr == nil {
+			etcdOk = true
 		}
 	}
 
@@ -493,12 +507,8 @@ func (g *GatewayDaemon) handleListCoordinators(w http.ResponseWriter, r *http.Re
 	defer cancel()
 
 	var coordinators []string
-	if len(g.cfg.Etcd.Endpoints) > 0 {
-		etcdClient, err := infra.NewEtcdClient(g.cfg.Etcd)
-		if err == nil {
-			coordinators, _ = etcdClient.GetCoordinators(pingCtx)
-			etcdClient.Close()
-		}
+	if g.coord != nil {
+		coordinators, _ = g.coord.GetCoordinators(pingCtx)
 	}
 	if coordinators == nil {
 		coordinators = []string{}

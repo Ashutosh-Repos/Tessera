@@ -49,6 +49,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 		Gateway: config.GatewayConfig{
 			ListenAddr:       "127.0.0.1:8085",
 			JWTSecret:        "testsecret",
+			AdminAPIKey:      "testsecret",
 			MaxUploadSizeGB:  5,
 			RateLimitPerIP:   1000,
 			RateLimitPerUser: 1000,
@@ -159,7 +160,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	defer cancelDaemons()
 
 	// Boot Ingest Gateway
-	gwDaemon := gateway.NewGatewayDaemon(cfg, stateStore, objStore, messageBus)
+	gwDaemon := gateway.NewGatewayDaemon(cfg, stateStore, objStore, messageBus, coordClient)
 	go func() {
 		if err := gwDaemon.Run(daemonCtx); err != nil && err != http.ErrServerClosed {
 			log.Printf("Gateway shutdown with error: %v", err)

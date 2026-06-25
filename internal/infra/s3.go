@@ -77,7 +77,7 @@ func NewS3Client(cfg config.ObjectStoreConfig) (*S3Client, error) {
 		})
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
 		awsconfig.WithRegion(cfg.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, "")),
 		awsconfig.WithEndpointResolverWithOptions(customResolver),

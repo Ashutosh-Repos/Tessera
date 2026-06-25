@@ -28,6 +28,7 @@ object_store:
 gateway:
   listen_addr: "127.0.0.1:8090"
   jwt_secret: "eu-west-secret-key"
+  admin_api_key: "admin-secret-token"
   max_upload_size_gb: 5
   rate_limit_per_ip: 1000
   rate_limit_per_user: 1000

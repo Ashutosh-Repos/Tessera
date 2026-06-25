@@ -64,6 +64,7 @@ type ObjectStoreConfig struct {
 type GatewayConfig struct {
 	ListenAddr       string `yaml:"listen_addr"`         // ":8080"
 	JWTSecret        string `yaml:"jwt_secret"`
+	AdminAPIKey      string `yaml:"admin_api_key"`
 	MaxUploadSizeGB  int    `yaml:"max_upload_size_gb"`  // 50
 	RateLimitPerIP   int    `yaml:"rate_limit_per_ip"`   // 100/min
 	RateLimitPerUser int    `yaml:"rate_limit_per_user"` // 500/day
