@@ -4,28 +4,28 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 263.4 70% 50.4%; /* Purple primary */
-    --primary-foreground: 210 20% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 0 0% 0%; /* Pure Black */
+    --foreground: 0 0% 100%; /* Pure White */
+    --card: 0 0% 3%; /* Near black card */
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%; /* White primary */
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 12%; /* Dark gray */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263.4 70% 50.4%;
-    --radius: 0.5rem;
-    --sans: system-ui, -apple-system, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%; /* Sleek thin border */
+    --input: 0 0% 15%;
+    --ring: 0 0% 100%;
+    --radius: 0.25rem; /* Clean sharp corners */
+    --sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
   }
 }
 

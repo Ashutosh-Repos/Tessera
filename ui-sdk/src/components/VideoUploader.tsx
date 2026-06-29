@@ -1,13 +1,37 @@
 import { useState, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle } from 'lucide-react';
+import { cn } from '../lib/utils';
+
+export interface VideoUploaderClassNames {
+  container?: string;
+  dropZone?: string;
+  uploadIcon?: string;
+  title?: string;
+  subtitle?: string;
+  button?: string;
+  progressBarContainer?: string;
+  progressBar?: string;
+  progressValue?: string;
+  statusText?: string;
+  jobIdBadge?: string;
+  successIcon?: string;
+  errorIcon?: string;
+}
 
 interface VideoUploaderProps {
   gatewayUrl: string; // e.g. http://localhost:8080
   onUploadSuccess?: (hlsUrl: string) => void;
+  className?: string;
+  classNames?: VideoUploaderClassNames;
 }
 
-export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUploadSuccess }) => {
+export const VideoUploader: React.FC<VideoUploaderProps> = ({ 
+  gatewayUrl, 
+  onUploadSuccess,
+  className,
+  classNames = {}
+}) => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number>(0);
@@ -54,7 +78,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
       const sessionRes = await fetch(`${gatewayUrl}/api/jobs/upload-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_size_bytes: file.size }),
+        body: JSON.stringify({ file_size_bytes: file.size, file_name: file.name }),
       });
       
       if (!sessionRes.ok) throw new Error('Failed to create upload session');
@@ -67,7 +91,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
       setJobId(jId);
 
       // Step 2: Get Presigned URLs
-      setStatusMessage('Fetching Upload URLs...');
+      setStatusMessage('Requesting Presigned URLs...');
       const urlsRes = await fetch(`${gatewayUrl}/api/jobs/${jId}/urls?start=1&count=${totalParts}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -77,7 +101,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
       const urlsData = await urlsRes.json();
 
       // Step 3: Chunk and Upload
-      setStatusMessage('Uploading to Edge...');
+      setStatusMessage('Uploading Media Chunks...');
       const uploadedParts = [];
       let uploadedBytes = 0;
 
@@ -110,7 +134,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
       }
 
       // Step 4: Complete Upload
-      setStatusMessage('Finalizing Upload...');
+      setStatusMessage('Assembling File on Storage...');
       const completeRes = await fetch(`${gatewayUrl}/api/jobs/${jId}/complete`, {
         method: 'POST',
         headers: { 
@@ -123,7 +147,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
       if (!completeRes.ok) throw new Error('Failed to complete upload');
 
       setStatus('processing');
-      setStatusMessage('Distributed Transcoding...');
+      setStatusMessage('Distributed Transcoding Active...');
       
       // Step 5: Listen to SSE for Transcode Progress
       connectToSSE(jId);
@@ -131,6 +155,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
     } catch (err) {
       console.error(err);
       setStatus('error');
+      setStatusMessage(err instanceof Error ? err.message : 'An error occurred during upload');
     }
   };
 
@@ -158,7 +183,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
         }
         if (phase === 'FAILED') {
           setStatus('error');
-          setStatusMessage(data.error || 'Transcoding failed');
+          setStatusMessage(data.error || 'Transcoding pipeline failure');
           eventSource.close();
         }
       } catch (err) {
@@ -167,7 +192,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
     };
 
     eventSource.onerror = (err) => {
-      console.error("EventSource failed", err);
+      console.error("EventSource connection error", err);
     };
   };
 
@@ -181,11 +206,14 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto">
+    <div className={cn("w-full max-w-xl mx-auto", className, classNames.container)}>
       <div 
-        className={`relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/40 p-8 text-center transition-all duration-300 backdrop-blur-sm ${
-          isDragging ? 'border-purple-500 bg-purple-500/5' : 'hover:border-zinc-700'
-        } ${status !== 'idle' ? 'cursor-default' : 'cursor-pointer'}`}
+        className={cn(
+          "relative overflow-hidden rounded-md border border-neutral-800 bg-black p-8 text-center transition-all duration-300",
+          isDragging ? "border-white bg-neutral-900/50" : "hover:border-neutral-700",
+          status !== 'idle' ? "cursor-default" : "cursor-pointer",
+          classNames.dropZone
+        )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -201,27 +229,30 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
         
         {status === 'idle' && (
           <div className="flex flex-col items-center py-4">
-            <div className="mb-4 rounded-full bg-zinc-900 p-4 text-purple-400 ring-1 ring-zinc-800">
-              <UploadCloud className="h-8 w-8 animate-pulse" />
+            <div className={cn("mb-4 rounded-full bg-neutral-900 p-4 text-white border border-neutral-800 transition-transform duration-300 hover:scale-105", classNames.uploadIcon)}>
+              <UploadCloud className="h-6 w-6" />
             </div>
             
-            <h3 className="mb-1 text-lg font-semibold text-zinc-100 font-mono">
-              {file ? file.name : "Drag & Drop Video Here"}
+            <h3 className={cn("mb-1 text-sm font-semibold tracking-tight text-neutral-100 font-mono", classNames.title)}>
+              {file ? file.name : "DRAG & DROP VIDEO"}
             </h3>
-            <p className="text-sm text-zinc-400 mb-6">
-              {file ? formatBytes(file.size) : "Supports MP4, MOV, AVI up to 50 GB"}
+            <p className={cn("text-xs text-neutral-400 mb-6 font-mono", classNames.subtitle)}>
+              {file ? formatBytes(file.size) : "MP4, MOV, AVI UP TO 50 GB"}
             </p>
             
             {file ? (
               <button 
-                className="w-full max-w-xs rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 active:bg-purple-700 transition-colors shadow-lg shadow-purple-900/30 font-mono"
+                className={cn(
+                  "w-full max-w-xs rounded bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-neutral-200 active:scale-[0.98] transition-all font-mono",
+                  classNames.button
+                )}
                 onClick={(e) => { e.stopPropagation(); startUpload(); }}
               >
-                Upload & Process File
+                START UPLOAD
               </button>
             ) : (
-              <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
-                Click to browse filesystem
+              <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest bg-neutral-900 px-3 py-1.5 rounded border border-neutral-850">
+                Browse Filesystem
               </span>
             )}
           </div>
@@ -229,36 +260,26 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
 
         {(status === 'uploading' || status === 'processing') && (
           <div className="flex flex-col items-center py-6">
-            <div className="relative mb-6 flex h-24 w-24 items-center justify-center">
-              <span className="text-2xl font-bold text-zinc-100 font-mono">{progress}%</span>
-              <svg className="absolute inset-0 h-full w-full -rotate-90">
-                <circle 
-                  className="text-zinc-900" 
-                  strokeWidth="4" 
-                  stroke="currentColor" 
-                  fill="transparent" 
-                  r="42" cx="48" cy="48"
+            <div className="w-full mb-6 max-w-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className={cn("text-xs font-semibold text-neutral-400 font-mono tracking-wider uppercase", classNames.statusText)}>
+                  {statusMessage}
+                </span>
+                <span className={cn("text-xs font-bold text-white font-mono", classNames.progressValue)}>
+                  {progress}%
+                </span>
+              </div>
+              <div className={cn("w-full bg-neutral-900 h-1.5 rounded-full overflow-hidden border border-neutral-950", classNames.progressBarContainer)}>
+                <div 
+                  className={cn("bg-white h-full transition-all duration-300 rounded-full", classNames.progressBar)}
+                  style={{ width: `${progress}%` }}
                 />
-                <circle 
-                  className="text-purple-500 transition-all duration-300" 
-                  strokeWidth="4" 
-                  strokeDasharray="263.89" 
-                  strokeDashoffset={263.89 - (263.89 * progress) / 100}
-                  strokeLinecap="round"
-                  stroke="currentColor" 
-                  fill="transparent" 
-                  r="42" cx="48" cy="48"
-                />
-              </svg>
+              </div>
             </div>
             
-            <h3 className="mb-2 text-lg font-semibold text-zinc-200 font-mono flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 animate-spin text-purple-400" />
-              {statusMessage}
-            </h3>
             {jobId && (
-              <p className="text-xs font-mono text-zinc-500 bg-zinc-900/60 px-3 py-1.5 rounded border border-zinc-900">
-                Job ID: {jobId}
+              <p className={cn("text-[10px] font-mono text-neutral-400 bg-neutral-900 px-3 py-1.5 rounded border border-neutral-800", classNames.jobIdBadge)}>
+                JOB_ID: {jobId}
               </p>
             )}
           </div>
@@ -266,14 +287,21 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
 
         {status === 'completed' && (
           <div className="flex flex-col items-center py-6">
-            <div className="mb-4 rounded-full bg-emerald-950/50 p-4 text-emerald-400 ring-1 ring-emerald-800">
-              <CheckCircle2 className="h-8 w-8" />
+            <div className={cn("mb-4 rounded-full bg-neutral-900 p-4 text-white border border-neutral-800", classNames.successIcon)}>
+              <CheckCircle2 className="h-6 w-6" />
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-zinc-100 font-mono">Transcoding Complete</h3>
-            <p className="text-sm text-zinc-400 mb-6">Your HLS stream is compiled and ready for playback</p>
+            <h3 className={cn("mb-1 text-sm font-semibold tracking-tight text-white font-mono", classNames.title)}>
+              TRANSCODING COMPLETED
+            </h3>
+            <p className={cn("text-xs text-neutral-400 mb-6 font-mono", classNames.subtitle)}>
+              HLS adaptive stream compiled and indexed
+            </p>
             
             <button 
-              className="w-full max-w-xs rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 active:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/30 font-mono"
+              className={cn(
+                "w-full max-w-xs rounded bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-neutral-200 active:scale-[0.98] transition-all font-mono",
+                classNames.button
+              )}
               onClick={(e) => { 
                 e.stopPropagation(); 
                 if (onUploadSuccess && completedHlsUrl) {
@@ -281,24 +309,31 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
                 }
               }}
             >
-              Watch Stream
+              PREVIEW STREAM
             </button>
           </div>
         )}
 
         {status === 'error' && (
           <div className="flex flex-col items-center py-6">
-            <div className="mb-4 rounded-full bg-rose-950/50 p-4 text-rose-400 ring-1 ring-rose-800">
-              <AlertCircle className="h-8 w-8" />
+            <div className={cn("mb-4 rounded-full bg-neutral-900 p-4 text-white border border-neutral-800", classNames.errorIcon)}>
+              <AlertCircle className="h-6 w-6" />
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-rose-400 font-mono">Processing Failed</h3>
-            <p className="text-sm text-zinc-400 mb-6">{statusMessage || "An error occurred during transcoding"}</p>
+            <h3 className={cn("mb-1 text-sm font-semibold tracking-tight text-white font-mono", classNames.title)}>
+              PIPELINE FAILURE
+            </h3>
+            <p className={cn("text-xs text-neutral-400 mb-6 font-mono", classNames.subtitle)}>
+              {statusMessage || "An error occurred during transcoding"}
+            </p>
             
             <button 
-              className="w-full max-w-xs rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 active:bg-zinc-900 transition-colors border border-zinc-700 font-mono"
+              className={cn(
+                "w-full max-w-xs rounded bg-neutral-900 border border-neutral-800 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-850 active:scale-[0.98] transition-all font-mono",
+                classNames.button
+              )}
               onClick={(e) => { e.stopPropagation(); setStatus('idle'); setFile(null); }}
             >
-              Try Again
+              RESET ENGINE
             </button>
           </div>
         )}
@@ -306,3 +341,4 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ gatewayUrl, onUplo
     </div>
   );
 };
+

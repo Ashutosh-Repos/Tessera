@@ -26,13 +26,20 @@ export const HashRing: React.FC<HashRingProps> = ({
     const cx = width / 2;
     const cy = height / 2;
     const ringRadius = Math.min(width, height) * 0.38;
-    const dotRadius = 3;
+    const dotRadius = 2.5;
 
     // Clear
     ctx.clearRect(0, 0, width, height);
 
-    // Color palette for coordinators
-    const colors = ['#818CF8', '#EC4899', '#34D399', '#F59E0B', '#06B6D4', '#F472B6'];
+    // Monochromatic shades for coordinator segments
+    const colors = [
+      '#ffffff', // Stark White
+      '#d4d4d4', // Light Gray
+      '#a3a3a3', // Neutral Gray
+      '#737373', // Dim Gray
+      '#525252', // Dark Gray
+      '#404040'  // Charcoal
+    ];
 
     // Build ownership map: partition -> coordinator index
     const ownerMap = new Map<number, number>();
@@ -48,17 +55,17 @@ export const HashRing: React.FC<HashRingProps> = ({
         const nextAngle = ((p + 1) / partitions) * Math.PI * 2 - Math.PI / 2;
 
         ctx.beginPath();
-        ctx.arc(cx, cy, ringRadius - 8, angle, nextAngle);
-        ctx.strokeStyle = color + '40';
-        ctx.lineWidth = 14;
+        ctx.arc(cx, cy, ringRadius - 6, angle, nextAngle);
+        ctx.strokeStyle = color + '25'; // subtle arc fill
+        ctx.lineWidth = 10;
         ctx.stroke();
       });
     });
 
-    // Draw ring base
+    // Draw ring base line
     ctx.beginPath();
     ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -68,7 +75,7 @@ export const HashRing: React.FC<HashRingProps> = ({
       const x = cx + ringRadius * Math.cos(angle);
       const y = cy + ringRadius * Math.sin(angle);
       const ownerIdx = ownerMap.get(i);
-      const color = ownerIdx !== undefined ? colors[ownerIdx % colors.length] : 'rgba(255,255,255,0.2)';
+      const color = ownerIdx !== undefined ? colors[ownerIdx % colors.length] : 'rgba(255, 255, 255, 0.15)';
 
       ctx.beginPath();
       ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
@@ -83,44 +90,44 @@ export const HashRing: React.FC<HashRingProps> = ({
         ? coord.partitions.reduce((a, b) => a + b, 0) / coord.partitions.length
         : 0;
       const angle = (avgPartition / partitions) * Math.PI * 2 - Math.PI / 2;
-      const labelRadius = ringRadius + 32;
+      const labelRadius = ringRadius + 28;
       const x = cx + labelRadius * Math.cos(angle);
       const y = cy + labelRadius * Math.sin(angle);
 
-      // Dot
+      // Label Dot
       ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = '#09090b'; // dark neutral background color
+      ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Label
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      // Label Text
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.font = '8px ui-monospace, SFMono-Regular, monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const labelX = cx + (labelRadius + 18) * Math.cos(angle);
       const labelY = cy + (labelRadius + 18) * Math.sin(angle);
-      ctx.fillText(coord.id.substring(0, 12), labelX, labelY);
+      ctx.fillText(coord.id.substring(0, 10).toUpperCase(), labelX, labelY);
     });
 
     // Center text
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.font = 'bold 24px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px ui-monospace, SFMono-Regular, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${partitions}`, cx, cy - 8);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    ctx.fillText('partitions', cx, cy + 14);
+    ctx.fillText(`${partitions}`, cx, cy - 6);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '8px ui-monospace, SFMono-Regular, monospace';
+    ctx.fillText('PARTITIONS', cx, cy + 12);
 
   }, [partitions, coordinators, width, height]);
 
   return (
     <div className="flex justify-center items-center w-full h-full">
-      <canvas ref={canvasRef} className="block max-w-full h-auto rounded-lg bg-zinc-950/10" style={{ width, height }} />
+      <canvas ref={canvasRef} className="block max-w-full h-auto rounded bg-transparent" style={{ width, height }} />
     </div>
   );
 };
