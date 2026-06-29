@@ -18,6 +18,21 @@ temp/
 .AppleDouble
 .LSOverride
 
+# Test media files
+*.mp4
+sampletest.mp4
+test.mp4
+
+# Personal files
+resume.md
+
+# Superseded early design drafts (now in docs/)
+distributed_transcoder_design_plan.md
+infrastructure_requirements.md
+ingestion_slicing_design.md
+detailed_hld.md
+detailed_lld.md
+
 # Frontend build/dep folders inside subprojects
 **/node_modules/
 **/dist/
