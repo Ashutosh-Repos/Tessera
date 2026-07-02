@@ -133,6 +133,16 @@ export default function Home() {
   
   const [playerAccent, setPlayerAccent] = useState<string>("#ffffff");
   const [playerAspectRatio, setPlayerAspectRatio] = useState<"16/9" | "4/3" | "1/1">("16/9");
+  
+  // Extended player styling controls
+  const [controlsMode, setControlsMode] = useState<"overlay" | "below">("overlay");
+  const [controlsBg, setControlsBg] = useState<string>("#000000");
+  const [controlsBgOpacity, setControlsBgOpacity] = useState<number>(70); // percent
+  const [controlsIconColor, setControlsIconColor] = useState<string>("#ffffff");
+  const [progressBarColor, setProgressBarColor] = useState<string>("#ffffff");
+  const [progressBarHeight, setProgressBarHeight] = useState<number>(3); // px
+  const [playerBorderRadius, setPlayerBorderRadius] = useState<number>(8); // px
+  const [showControlsOnHover, setShowControlsOnHover] = useState<boolean>(true);
 
   // Mock interactive simulation actions
   const [mockFileName, setMockFileName] = useState<string>("");
@@ -382,6 +392,17 @@ function App() {
       aspectRatio="${playerAspectRatio}"
       accentColor="${playerAccent}"
       autoPlay={false}
+      borderRadius={${playerBorderRadius}}
+      controlsPosition="${controlsMode}"${controlsMode === "overlay" ? `\n      showControlsOnHover={${showControlsOnHover}}` : ""}
+      controlsStyle={{
+        backgroundColor: "${controlsBg}",
+        backgroundOpacity: ${controlsBgOpacity / 100},
+        iconColor: "${controlsIconColor}",
+      }}
+      progressBar={{
+        color: "${progressBarColor}",
+        height: ${progressBarHeight},
+      }}
       onPlay={() => console.log("HLS stream playback started")}
     />
   );
@@ -594,7 +615,25 @@ function App() {
               ) : (
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">PLAYER_ACCENT_COLOR</label>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">CONTROLS_POSITION</label>
+                    <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                      <button
+                        onClick={() => setControlsMode("overlay")}
+                        className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${controlsMode === "overlay" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                      >
+                        OVERLAY
+                      </button>
+                      <button
+                        onClick={() => setControlsMode("below")}
+                        className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${controlsMode === "below" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                      >
+                        BELOW
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">ACCENT_COLOR</label>
                     <div className="flex gap-2 items-center">
                       <input 
                         type="color"
@@ -605,6 +644,7 @@ function App() {
                       <span className="font-mono text-xs text-zinc-400">{playerAccent}</span>
                     </div>
                   </div>
+
                   <div>
                     <label className="block font-mono text-[10px] text-zinc-500 mb-1">ASPECT_RATIO</label>
                     <select 
@@ -617,6 +657,98 @@ function App() {
                       <option value="1/1">Square (1:1)</option>
                     </select>
                   </div>
+
+                  <div className="h-px bg-zinc-900" />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-mono text-[10px] text-zinc-500 mb-1">CONTROLS_BG</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="color"
+                          value={controlsBg}
+                          onChange={(e) => setControlsBg(e.target.value)}
+                          className="bg-transparent border-0 cursor-pointer w-7 h-7 rounded"
+                        />
+                        <span className="font-mono text-[10px] text-zinc-400">{controlsBg}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block font-mono text-[10px] text-zinc-500 mb-1">ICON_COLOR</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="color"
+                          value={controlsIconColor}
+                          onChange={(e) => setControlsIconColor(e.target.value)}
+                          className="bg-transparent border-0 cursor-pointer w-7 h-7 rounded"
+                        />
+                        <span className="font-mono text-[10px] text-zinc-400">{controlsIconColor}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">CONTROLS_BG_OPACITY ({controlsBgOpacity}%)</label>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={controlsBgOpacity}
+                      onChange={(e) => setControlsBgOpacity(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="h-px bg-zinc-900" />
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">PROGRESS_BAR_COLOR</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="color"
+                        value={progressBarColor}
+                        onChange={(e) => setProgressBarColor(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-7 h-7 rounded"
+                      />
+                      <span className="font-mono text-[10px] text-zinc-400">{progressBarColor}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">PROGRESS_BAR_HEIGHT ({progressBarHeight}px)</label>
+                    <input 
+                      type="range"
+                      min="2"
+                      max="8"
+                      value={progressBarHeight}
+                      onChange={(e) => setProgressBarHeight(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">PLAYER_BORDER_RADIUS ({playerBorderRadius}px)</label>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="24"
+                      value={playerBorderRadius}
+                      onChange={(e) => setPlayerBorderRadius(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  {controlsMode === "overlay" && (
+                    <div className="flex items-center justify-between">
+                      <label className="font-mono text-[10px] text-zinc-500">SHOW_ON_HOVER</label>
+                      <button 
+                        onClick={() => setShowControlsOnHover(!showControlsOnHover)}
+                        className={`w-9 h-5 rounded-full transition-colors relative ${showControlsOnHover ? "bg-white" : "bg-zinc-800"}`}
+                      >
+                        <span className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${showControlsOnHover ? "left-[18px] bg-black" : "left-0.5 bg-zinc-500"}`} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -686,14 +818,18 @@ function App() {
                 </div>
               ) : (
                 <div className="w-full max-w-md flex flex-col gap-6 animate-in fade-in duration-200">
-                  {/* Aspect video canvas */}
+                  {/* Video player container */}
                   <div 
-                    style={{
-                      aspectRatio: playerAspectRatio === "16/9" ? 16/9 : playerAspectRatio === "4/3" ? 4/3 : 1
-                    }}
-                    className="w-full bg-zinc-950 border border-zinc-900 rounded-lg overflow-hidden flex flex-col justify-between transition-all duration-300 relative group"
+                    style={{ borderRadius: `${playerBorderRadius}px` }}
+                    className="w-full bg-zinc-950 border border-zinc-900 overflow-hidden flex flex-col transition-all duration-300 relative group"
                   >
-                    <div className="flex-1 relative bg-black flex items-center justify-center">
+                    {/* Aspect-constrained video area */}
+                    <div 
+                      style={{
+                        aspectRatio: playerAspectRatio === "16/9" ? 16/9 : playerAspectRatio === "4/3" ? 4/3 : 1
+                      }}
+                      className="relative bg-black flex items-center justify-center w-full overflow-hidden"
+                    >
                       <video 
                         ref={videoRef}
                         className="w-full h-full object-cover"
@@ -701,71 +837,246 @@ function App() {
                         onClick={togglePlayback}
                       />
                       
-                      {/* Dark Play Overlay */}
+                      {/* Center Play Button Overlay */}
                       {!isPlaying && (
                         <div 
                           onClick={togglePlayback}
-                          className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
+                          className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer transition-opacity duration-200"
                         >
-                          <button className="rounded-full bg-white p-4 text-black hover:scale-105 transition-transform duration-200 shadow-xl">
-                            <Play className="h-5 w-5 fill-current translate-x-0.5" />
+                          <button 
+                            style={{ backgroundColor: playerAccent, color: controlsBg }}
+                            className="rounded-full p-4 hover:scale-110 transition-transform duration-200 shadow-2xl"
+                          >
+                            <Play className="h-6 w-6 fill-current translate-x-0.5" />
                           </button>
+                        </div>
+                      )}
+
+                      {/* OVERLAY MODE: Controls inside the video area */}
+                      {controlsMode === "overlay" && (
+                        <div 
+                          className={`absolute bottom-0 left-0 right-0 flex flex-col transition-all duration-300 z-20 ${
+                            showControlsOnHover 
+                              ? "opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0" 
+                              : "opacity-100"
+                          }`}
+                        >
+                          {/* Progress bar (above controls) */}
+                          <div 
+                            className="w-full cursor-pointer group/progress"
+                            style={{ height: `${progressBarHeight + 8}px`, padding: '4px 0' }}
+                            onClick={(e) => {
+                              const video = videoRef.current;
+                              if (!video || !duration) return;
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const pct = (e.clientX - rect.left) / rect.width;
+                              video.currentTime = pct * duration;
+                            }}
+                          >
+                            <div className="relative w-full h-full rounded-full overflow-hidden" style={{ backgroundColor: `${controlsBg}80` }}>
+                              {/* Buffered range */}
+                              <div 
+                                className="absolute top-0 left-0 h-full rounded-full opacity-30"
+                                style={{ 
+                                  width: `${duration ? ((() => { const v = videoRef.current; if (!v || v.buffered.length === 0) return 0; return (v.buffered.end(v.buffered.length - 1) / duration) * 100; })()) : 0}%`,
+                                  backgroundColor: progressBarColor 
+                                }}
+                              />
+                              {/* Current progress */}
+                              <div 
+                                className="absolute top-0 left-0 h-full rounded-full transition-all duration-150"
+                                style={{ 
+                                  width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                                  backgroundColor: progressBarColor 
+                                }}
+                              />
+                              {/* Scrubber dot */}
+                              <div 
+                                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-lg opacity-0 group-hover/progress:opacity-100 transition-opacity"
+                                style={{ 
+                                  left: `calc(${duration ? (currentTime / duration) * 100 : 0}% - 6px)`,
+                                  backgroundColor: progressBarColor 
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Controls row */}
+                          <div 
+                            className="px-4 py-2.5 flex items-center justify-between gap-3"
+                            style={{ 
+                              backgroundColor: (() => {
+                                const hex = controlsBg;
+                                const r = parseInt(hex.slice(1,3), 16);
+                                const g = parseInt(hex.slice(3,5), 16);
+                                const b = parseInt(hex.slice(5,7), 16);
+                                return `rgba(${r}, ${g}, ${b}, ${controlsBgOpacity / 100})`;
+                              })(),
+                              backdropFilter: 'blur(12px)',
+                              WebkitBackdropFilter: 'blur(12px)'
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <button onClick={togglePlayback} style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                              </button>
+                              
+                              <button onClick={toggleMute} style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                              </button>
+
+                              <span className="font-mono text-[10px]" style={{ color: controlsIconColor, opacity: 0.6 }}>
+                                {formatTime(currentTime)} / {formatTime(duration)}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {/* Quality selector */}
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setShowQualitySelector(prev => !prev)}
+                                  className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono rounded transition-opacity hover:opacity-80"
+                                  style={{ color: controlsIconColor, border: `1px solid ${controlsIconColor}30` }}
+                                >
+                                  <SlidersHorizontal className="w-3 h-3" />
+                                  {currentHlsLevel === -1 ? "Auto" : hlsLevels[currentHlsLevel] ? hlsLevels[currentHlsLevel].name : "Auto"}
+                                </button>
+                                
+                                {showQualitySelector && (
+                                  <div className="absolute bottom-8 right-0 rounded p-1 shadow-2xl w-28 flex flex-col gap-0.5 z-40 border"
+                                    style={{ 
+                                      backgroundColor: controlsBg, 
+                                      borderColor: `${controlsIconColor}20`,
+                                    }}
+                                  >
+                                    <button 
+                                      onClick={() => selectQuality(-1)}
+                                      className="w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:opacity-70 transition-opacity"
+                                      style={{ color: currentHlsLevel === -1 ? progressBarColor : controlsIconColor, fontWeight: currentHlsLevel === -1 ? 700 : 400 }}
+                                    >
+                                      ✦ Auto
+                                    </button>
+                                    {hlsLevels.map((lvl) => (
+                                      <button 
+                                        key={lvl.id}
+                                        onClick={() => selectQuality(lvl.id)}
+                                        className="w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:opacity-70 transition-opacity flex flex-col gap-0.5"
+                                        style={{ color: currentHlsLevel === lvl.id ? progressBarColor : controlsIconColor, fontWeight: currentHlsLevel === lvl.id ? 700 : 400 }}
+                                      >
+                                        <span>{lvl.name}</span>
+                                        <span style={{ opacity: 0.5, fontSize: '8px' }}>{lvl.bitrate} Kbps</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <button style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                                <Maximize className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Controls Footer */}
-                    <div className="bg-zinc-900 px-4 py-3 border-t border-zinc-950 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <button onClick={togglePlayback} className="text-zinc-400 hover:text-white transition-colors">
-                          {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                        </button>
-                        
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={toggleMute} className="text-zinc-400 hover:text-white transition-colors">
-                            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                          </button>
+                    {/* BELOW MODE: Controls under the video */}
+                    {controlsMode === "below" && (
+                      <div className="flex flex-col">
+                        {/* Progress bar */}
+                        <div 
+                          className="w-full cursor-pointer group/progress"
+                          style={{ height: `${progressBarHeight + 6}px`, padding: '3px 0' }}
+                          onClick={(e) => {
+                            const video = videoRef.current;
+                            if (!video || !duration) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const pct = (e.clientX - rect.left) / rect.width;
+                            video.currentTime = pct * duration;
+                          }}
+                        >
+                          <div className="relative w-full h-full" style={{ backgroundColor: `${controlsBg}40` }}>
+                            <div 
+                              className="absolute top-0 left-0 h-full transition-all duration-150"
+                              style={{ 
+                                width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                                backgroundColor: progressBarColor 
+                              }}
+                            />
+                          </div>
                         </div>
 
-                        <span className="font-mono text-[9px] text-zinc-500">
-                          {formatTime(currentTime)} / {formatTime(duration)}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        {/* Adaptive Levels selector */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setShowQualitySelector(prev => !prev)}
-                            className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono rounded border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-950 transition-colors"
-                          >
-                            <SlidersHorizontal className="w-3 h-3" />
-                            {currentHlsLevel === -1 ? "Auto" : hlsLevels[currentHlsLevel] ? hlsLevels[currentHlsLevel].name : "Auto"}
-                          </button>
+                        {/* Controls row */}
+                        <div 
+                          className="px-4 py-2.5 flex items-center justify-between gap-3"
+                          style={{ 
+                            backgroundColor: (() => {
+                              const hex = controlsBg;
+                              const r = parseInt(hex.slice(1,3), 16);
+                              const g = parseInt(hex.slice(3,5), 16);
+                              const b = parseInt(hex.slice(5,7), 16);
+                              return `rgba(${r}, ${g}, ${b}, ${controlsBgOpacity / 100})`;
+                            })()
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <button onClick={togglePlayback} style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                            </button>
+                            
+                            <button onClick={toggleMute} style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            </button>
+
+                            <span className="font-mono text-[9px]" style={{ color: controlsIconColor, opacity: 0.6 }}>
+                              {formatTime(currentTime)} / {formatTime(duration)}
+                            </span>
+                          </div>
                           
-                          {showQualitySelector && (
-                            <div className="absolute bottom-8 right-0 bg-zinc-950 border border-zinc-800 rounded p-1 shadow-2xl w-24 flex flex-col gap-0.5 z-40">
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
                               <button 
-                                onClick={() => selectQuality(-1)}
-                                className={`w-full text-left px-2 py-1 text-[9px] font-mono rounded hover:bg-zinc-900 ${currentHlsLevel === -1 ? "text-white font-bold" : "text-zinc-400"}`}
+                                onClick={() => setShowQualitySelector(prev => !prev)}
+                                className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono rounded transition-opacity hover:opacity-80"
+                                style={{ color: controlsIconColor, border: `1px solid ${controlsIconColor}30` }}
                               >
-                                Auto
+                                <SlidersHorizontal className="w-3 h-3" />
+                                {currentHlsLevel === -1 ? "Auto" : hlsLevels[currentHlsLevel] ? hlsLevels[currentHlsLevel].name : "Auto"}
                               </button>
-                              {hlsLevels.map((lvl) => (
-                                <button 
-                                  key={lvl.id}
-                                  onClick={() => selectQuality(lvl.id)}
-                                  className={`w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:bg-zinc-900 flex flex-col gap-0.5 ${currentHlsLevel === lvl.id ? "text-white font-bold" : "text-zinc-400"}`}
+                              
+                              {showQualitySelector && (
+                                <div className="absolute bottom-8 right-0 rounded p-1 shadow-2xl w-28 flex flex-col gap-0.5 z-40 border"
+                                  style={{ backgroundColor: controlsBg, borderColor: `${controlsIconColor}20` }}
                                 >
-                                  <span>{lvl.name}</span>
-                                  <span className="text-[8px] text-zinc-500">{lvl.bitrate} Kbps</span>
-                                </button>
-                              ))}
+                                  <button 
+                                    onClick={() => selectQuality(-1)}
+                                    className="w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:opacity-70 transition-opacity"
+                                    style={{ color: currentHlsLevel === -1 ? progressBarColor : controlsIconColor, fontWeight: currentHlsLevel === -1 ? 700 : 400 }}
+                                  >
+                                    ✦ Auto
+                                  </button>
+                                  {hlsLevels.map((lvl) => (
+                                    <button 
+                                      key={lvl.id}
+                                      onClick={() => selectQuality(lvl.id)}
+                                      className="w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:opacity-70 transition-opacity flex flex-col gap-0.5"
+                                      style={{ color: currentHlsLevel === lvl.id ? progressBarColor : controlsIconColor, fontWeight: currentHlsLevel === lvl.id ? 700 : 400 }}
+                                    >
+                                      <span>{lvl.name}</span>
+                                      <span style={{ opacity: 0.5, fontSize: '8px' }}>{lvl.bitrate} Kbps</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
+
+                            <button style={{ color: controlsIconColor }} className="hover:opacity-80 transition-opacity">
+                              <Maximize className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Telemetry charts row */}
