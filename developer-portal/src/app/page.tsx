@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Server, 
   UploadCloud, 
   Play, 
+  Pause,
   Cpu, 
   Settings, 
   Terminal, 
@@ -28,10 +29,12 @@ import {
   FileCode2,
   CheckCircle2,
   Volume2,
+  VolumeX,
   Maximize,
   SlidersHorizontal,
   ChevronDown
 } from "lucide-react";
+import Hls from "hls.js";
 
 export default function Home() {
   // ==========================================
@@ -56,7 +59,6 @@ export default function Home() {
     "Registered partition P7 at 315°"
   ]);
 
-  // Deterministic FNV-1a Hash mapped to [0, 359] degrees
   const getNodeAngle = (nodeName: string): number => {
     let hash = 2166136261;
     for (let i = 0; i < nodeName.length; i++) {
@@ -66,26 +68,22 @@ export default function Home() {
     return Math.abs(hash % 360);
   };
 
-  // Consistent Hashing mapping: find first node clockwise from partition angle
   const getPartitionOwner = (partIdx: number) => {
     if (nodes.length === 0) return "none";
-    const partAngle = partIdx * 45; // 8 partitions: 0, 45, 90, 135, 180, 225, 270, 315
+    const partAngle = partIdx * 45;
 
     const nodeMappings = nodes.map(name => ({
       name,
       angle: getNodeAngle(name)
     }));
 
-    // Sort ascending by angle
     nodeMappings.sort((a, b) => a.angle - b.angle);
 
-    // Find first node clockwise
     for (const node of nodeMappings) {
       if (node.angle >= partAngle) {
         return node.name;
       }
     }
-    // Wrap around to first node
     return nodeMappings[0].name;
   };
 
@@ -134,7 +132,6 @@ export default function Home() {
   const [paddingSize, setPaddingSize] = useState<number>(24); // in px
   
   const [playerAccent, setPlayerAccent] = useState<string>("#ffffff");
-  const [playerVolume, setPlayerVolume] = useState<number>(80);
   const [playerAspectRatio, setPlayerAspectRatio] = useState<"16/9" | "4/3" | "1/1">("16/9");
 
   // Mock interactive simulation actions
@@ -171,15 +168,184 @@ export default function Home() {
 
   const [isCodeCopied, setIsCodeCopied] = useState<boolean>(false);
 
-  const customStyleClasses = {
-    uploader: {
-      container: `border border-[${borderColor}] bg-[${bgColor}] rounded-[${borderRadius}px] p-[${paddingSize}px]`,
-      btn: `bg-[${btnBgColor}] text-[${btnTextColor}] hover:opacity-90 font-mono text-xs font-bold py-2.5 px-5 rounded`
-    },
-    player: {
-      accent: playerAccent,
-      aspect: playerAspectRatio
+  // ==========================================
+  // 3. REAL WORKING HLS PLAYER & TELEMETRY
+  // ==========================================
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hlsInstance, setHlsInstance] = useState<Hls | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  
+  // Adaptive streaming levels
+  const [hlsLevels, setHlsLevels] = useState<{ id: number; name: string; bitrate: number }[]>([]);
+  const [currentHlsLevel, setCurrentHlsLevel] = useState<number>(-1); // -1 = Auto
+  const [showQualitySelector, setShowQualitySelector] = useState<boolean>(false);
+
+  // Telemetry histories for SVG Sparklines (capped at 30 entries)
+  const [bufferHistory, setBufferHistory] = useState<number[]>(new Array(30).fill(0));
+  const [bitrateHistory, setBitrateHistory] = useState<number[]>(new Array(30).fill(0));
+
+  const [currentBufferSec, setCurrentBufferSec] = useState<number>(0);
+  const [currentBitrateKbps, setCurrentBitrateKbps] = useState<number>(0);
+
+  // Stable public adaptive test HLS stream
+  const hlsSourceUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
+  useEffect(() => {
+    if (selectedComp !== "player") {
+      // Destroy player when switching away
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        setHlsInstance(null);
+      }
+      setIsPlaying(false);
+      return;
     }
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true,
+        startLevel: -1, // Auto
+      });
+
+      hls.loadSource(hlsSourceUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        const parsedLevels = data.levels.map((lvl, idx) => ({
+          id: idx,
+          name: `${lvl.height}p`,
+          bitrate: Math.round(lvl.bitrate / 1000)
+        }));
+        setHlsLevels(parsedLevels);
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+        setCurrentHlsLevel(data.level);
+      });
+
+      setHlsInstance(hls);
+      setHlsInstance(hls);
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hlsSourceUrl;
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [selectedComp]);
+
+  // Video event handlers
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTimeUpdate = () => setCurrentTime(video.currentTime);
+    const onLoadedMetadata = () => setDuration(video.duration);
+    const onVolumeChange = () => setIsMuted(video.muted);
+
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("volumechange", onVolumeChange);
+
+    return () => {
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("volumechange", onVolumeChange);
+    };
+  }, [selectedComp]);
+
+  // Telemetry Polling (every 500ms)
+  useEffect(() => {
+    if (selectedComp !== "player") return;
+
+    const interval = setInterval(() => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      // 1. Calculate Buffer occupancy
+      let bufferSec = 0;
+      if (video.buffered.length > 0) {
+        for (let i = 0; i < video.buffered.length; i++) {
+          if (video.currentTime >= video.buffered.start(i) && video.currentTime <= video.buffered.end(i)) {
+            bufferSec = video.buffered.end(i) - video.currentTime;
+            break;
+          }
+        }
+      }
+      setCurrentBufferSec(Math.round(bufferSec * 10) / 10);
+
+      // 2. Fetch current bitrate from active level
+      let bitrateKbps = 0;
+      if (hlsInstance) {
+        const activeLevel = hlsInstance.levels[hlsInstance.currentLevel];
+        if (activeLevel) {
+          bitrateKbps = Math.round(activeLevel.bitrate / 1000);
+        }
+      } else {
+        // Fallback for native Safari
+        bitrateKbps = 2400;
+      }
+      setCurrentBitrateKbps(bitrateKbps);
+
+      // 3. Shift history arrays
+      setBufferHistory(prev => {
+        const next = [...prev.slice(1), bufferSec];
+        return next;
+      });
+
+      setBitrateHistory(prev => {
+        const next = [...prev.slice(1), bitrateKbps];
+        return next;
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [selectedComp, hlsInstance]);
+
+  const togglePlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+  };
+
+  const selectQuality = (levelId: number) => {
+    if (!hlsInstance) return;
+    hlsInstance.currentLevel = levelId; // -1 = Auto
+    setCurrentHlsLevel(levelId);
+    setShowQualitySelector(false);
+  };
+
+  const formatTime = (sec: number) => {
+    if (isNaN(sec) || !isFinite(sec)) return "00:00";
+    const mins = Math.floor(sec / 60);
+    const secs = Math.floor(sec % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const generatedJSXCode = selectedComp === "uploader" 
@@ -212,7 +378,7 @@ function App() {
 function App() {
   return (
     <VideoPlayer 
-      src="http://localhost:8080/playback/master.m3u8"
+      src="${hlsSourceUrl}"
       aspectRatio="${playerAspectRatio}"
       accentColor="${playerAccent}"
       autoPlay={false}
@@ -222,7 +388,7 @@ function App() {
 }`;
 
   // ==========================================
-  // 3. ARCHITECTURE PIPELINE MAP
+  // 4. ARCHITECTURE PIPELINE MAP
   // ==========================================
   const [activeArchStage, setActiveArchStage] = useState<string>("ingest");
   const stageExplanations: Record<string, { title: string; desc: string; metrics: string }> = {
@@ -254,16 +420,14 @@ function App() {
   };
 
   // ==========================================
-  // 4. EMBEDDED SYSTEM MANUALS
+  // 5. EMBEDDED SYSTEM MANUALS
   // ==========================================
   const [docTab, setDocTab] = useState<"quickstart" | "deployment" | "master">("quickstart");
 
   return (
     <main className="relative min-h-screen bg-black text-foreground overflow-x-hidden">
-      {/* Background Grid Pattern */}
       <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
 
-      {/* Decorative Glow Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-zinc-900/10 blur-[120px] glow-glow pointer-events-none" />
       <div className="absolute bottom-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-zinc-900/10 blur-[120px] glow-glow pointer-events-none" />
 
@@ -321,7 +485,7 @@ function App() {
         </div>
       </section>
 
-      {/* Dynamic Style customizer & Live visual preview */}
+      {/* Visual Customizer & Simulator */}
       <section id="customizer" className="border-t border-zinc-900/60 py-24 px-6 max-w-7xl mx-auto">
         <div className="mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-white">Visual Customizer & Simulator</h2>
@@ -453,17 +617,6 @@ function App() {
                       <option value="1/1">Square (1:1)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">DEFAULT_VOLUME ({playerVolume}%)</label>
-                    <input 
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={playerVolume}
-                      onChange={(e) => setPlayerVolume(Number(e.target.value))}
-                      className="w-full accent-white"
-                    />
-                  </div>
                 </div>
               )}
             </div>
@@ -471,8 +624,7 @@ function App() {
 
           {/* Visual Component Render & Generated Code panels */}
           <div className="lg:col-span-8 flex flex-col gap-6">
-            {/* Visual simulation box */}
-            <div className="glass-card rounded-lg p-8 border border-zinc-900 bg-zinc-950/20 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="glass-card rounded-lg p-8 border border-zinc-900 bg-zinc-950/20 flex flex-col items-center justify-center min-h-[360px]">
               <span className="font-mono text-[9px] text-zinc-500 mb-4 self-start tracking-wider">LIVE_VISUAL_PREVIEW //</span>
 
               {selectedComp === "uploader" ? (
@@ -483,7 +635,7 @@ function App() {
                     borderRadius: `${borderRadius}px`,
                     padding: `${paddingSize}px`
                   }}
-                  className="w-full max-w-md border transition-all duration-300 flex flex-col items-center text-center gap-4"
+                  className="w-full max-w-md border transition-all duration-300 flex flex-col items-center text-center gap-4 animate-in fade-in duration-200"
                 >
                   <span className="font-mono text-xs text-zinc-400 font-bold block">{uploaderTitle}</span>
                   
@@ -533,39 +685,137 @@ function App() {
                   )}
                 </div>
               ) : (
-                <div 
-                  style={{
-                    aspectRatio: playerAspectRatio === "16/9" ? 16/9 : playerAspectRatio === "4/3" ? 4/3 : 1
-                  }}
-                  className="w-full max-w-md bg-zinc-950 border border-zinc-900 rounded-lg overflow-hidden flex flex-col justify-between transition-all duration-300 relative group"
-                >
+                <div className="w-full max-w-md flex flex-col gap-6 animate-in fade-in duration-200">
                   {/* Aspect video canvas */}
-                  <div className="flex-1 flex items-center justify-center relative bg-black">
-                    <Play 
-                      className="w-12 h-12 transition-transform group-hover:scale-110" 
-                      style={{ color: playerAccent }}
-                    />
-                    
-                    {/* Accent glowing aura */}
-                    <div 
-                      className="absolute inset-0 opacity-10 blur-xl pointer-events-none"
-                      style={{ backgroundColor: playerAccent }}
-                    />
-                  </div>
+                  <div 
+                    style={{
+                      aspectRatio: playerAspectRatio === "16/9" ? 16/9 : playerAspectRatio === "4/3" ? 4/3 : 1
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-900 rounded-lg overflow-hidden flex flex-col justify-between transition-all duration-300 relative group"
+                  >
+                    <div className="flex-1 relative bg-black flex items-center justify-center">
+                      <video 
+                        ref={videoRef}
+                        className="w-full h-full object-cover"
+                        playsInline
+                        onClick={togglePlayback}
+                      />
+                      
+                      {/* Dark Play Overlay */}
+                      {!isPlaying && (
+                        <div 
+                          onClick={togglePlayback}
+                          className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
+                        >
+                          <button className="rounded-full bg-white p-4 text-black hover:scale-105 transition-transform duration-200 shadow-xl">
+                            <Play className="h-5 w-5 fill-current translate-x-0.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Player footer controls */}
-                  <div className="bg-zinc-900 px-4 py-3 border-t border-zinc-950 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Play className="w-3.5 h-3.5 text-white" />
-                      <div className="w-24 bg-zinc-800 h-1 rounded-full overflow-hidden">
-                        <div className="h-full w-[40%]" style={{ backgroundColor: playerAccent }} />
+                    {/* Controls Footer */}
+                    <div className="bg-zinc-900 px-4 py-3 border-t border-zinc-950 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <button onClick={togglePlayback} className="text-zinc-400 hover:text-white transition-colors">
+                          {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                        </button>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={toggleMute} className="text-zinc-400 hover:text-white transition-colors">
+                            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        <span className="font-mono text-[9px] text-zinc-500">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {/* Adaptive Levels selector */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setShowQualitySelector(prev => !prev)}
+                            className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono rounded border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-950 transition-colors"
+                          >
+                            <SlidersHorizontal className="w-3 h-3" />
+                            {currentHlsLevel === -1 ? "Auto" : hlsLevels[currentHlsLevel] ? hlsLevels[currentHlsLevel].name : "Auto"}
+                          </button>
+                          
+                          {showQualitySelector && (
+                            <div className="absolute bottom-8 right-0 bg-zinc-950 border border-zinc-800 rounded p-1 shadow-2xl w-24 flex flex-col gap-0.5 z-40">
+                              <button 
+                                onClick={() => selectQuality(-1)}
+                                className={`w-full text-left px-2 py-1 text-[9px] font-mono rounded hover:bg-zinc-900 ${currentHlsLevel === -1 ? "text-white font-bold" : "text-zinc-400"}`}
+                              >
+                                Auto
+                              </button>
+                              {hlsLevels.map((lvl) => (
+                                <button 
+                                  key={lvl.id}
+                                  onClick={() => selectQuality(lvl.id)}
+                                  className={`w-full text-left px-2 py-1.5 text-[9px] font-mono rounded hover:bg-zinc-900 flex flex-col gap-0.5 ${currentHlsLevel === lvl.id ? "text-white font-bold" : "text-zinc-400"}`}
+                                >
+                                  <span>{lvl.name}</span>
+                                  <span className="text-[8px] text-zinc-500">{lvl.bitrate} Kbps</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3 text-zinc-400">
-                      <Volume2 className="w-3.5 h-3.5" />
-                      <SlidersHorizontal className="w-3.5 h-3.5" />
-                      <Maximize className="w-3.5 h-3.5" />
+                  </div>
+
+                  {/* Telemetry charts row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Buffer occupancy graph */}
+                    <div className="border border-zinc-900 bg-zinc-950/40 p-4 rounded-lg flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-[9px] font-mono tracking-wider">
+                        <span className="text-zinc-500">LIVE BUFFER VALUE</span>
+                        <span className="text-white font-bold">{currentBufferSec}s</span>
+                      </div>
+                      <div className="h-16 w-full relative">
+                        <svg className="w-full h-full" viewBox="0 0 145 60" preserveAspectRatio="none">
+                          <polyline 
+                            fill="none"
+                            stroke="#ffffff"
+                            strokeWidth="1.5"
+                            points={bufferHistory.map((val, idx) => {
+                              const x = idx * 5;
+                              // Max expected buffer: 15s (map 0-15 to Y 60-0)
+                              const y = 60 - Math.min(15, val) * 4;
+                              return `${x},${y}`;
+                            }).join(" ")}
+                          />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Download Bitrate graph */}
+                    <div className="border border-zinc-900 bg-zinc-950/40 p-4 rounded-lg flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-[9px] font-mono tracking-wider">
+                        <span className="text-zinc-500">ACTIVE BANDWIDTH</span>
+                        <span className="text-white font-bold">
+                          {currentBitrateKbps > 1000 ? `${(currentBitrateKbps / 1000).toFixed(1)} Mbps` : `${currentBitrateKbps} Kbps`}
+                        </span>
+                      </div>
+                      <div className="h-16 w-full relative">
+                        <svg className="w-full h-full" viewBox="0 0 145 60" preserveAspectRatio="none">
+                          <polyline 
+                            fill="none"
+                            stroke="#888888"
+                            strokeWidth="1.5"
+                            points={bitrateHistory.map((val, idx) => {
+                              const x = idx * 5;
+                              // Max expected bitrate: 6000 Kbps (map 0-6000 to Y 60-0)
+                              const y = 60 - Math.min(6000, val) * 0.01;
+                              return `${x},${y}`;
+                            }).join(" ")}
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
