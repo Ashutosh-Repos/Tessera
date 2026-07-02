@@ -19,119 +19,211 @@ import {
   ArrowRight,
   Database,
   RefreshCw,
-  Globe
+  Globe,
+  Sliders,
+  ChevronRight,
+  AlertTriangle,
+  Info,
+  Layers2,
+  FileCode2,
+  CheckCircle2,
+  Volume2,
+  Maximize,
+  SlidersHorizontal,
+  ChevronDown
 } from "lucide-react";
 
 export default function Home() {
-  // --- Consistent Hashing Playground State ---
+  // ==========================================
+  // 1. CONSISTENT HASH RING ALGORITHM
+  // ==========================================
   const [nodes, setNodes] = useState<string[]>([
-    "coordinator-node-us-east-1",
-    "coordinator-node-us-east-2",
-    "coordinator-node-eu-west-1"
+    "coordinator-us-east-1a",
+    "coordinator-us-east-1b",
+    "coordinator-eu-west-1a"
   ]);
   const [newNodeName, setNewNodeName] = useState<string>("");
   const [activePartition, setActivePartition] = useState<number | null>(null);
   const [rebalanceLog, setRebalanceLog] = useState<string[]>([
-    "Ring initialized with 4 partition slots.",
-    "Mapped coordinator-node-us-east-1 to partitions [0].",
-    "Mapped coordinator-node-us-east-2 to partitions [1, 3].",
-    "Mapped coordinator-node-eu-west-1 to partitions [2]."
+    "Initializing Consistent Hashing Ring topology...",
+    "Registered partition P0 at 0°",
+    "Registered partition P1 at 45°",
+    "Registered partition P2 at 90°",
+    "Registered partition P3 at 135°",
+    "Registered partition P4 at 180°",
+    "Registered partition P5 at 225°",
+    "Registered partition P6 at 270°",
+    "Registered partition P7 at 315°"
   ]);
 
-  // Add node to hash ring
+  // Deterministic FNV-1a Hash mapped to [0, 359] degrees
+  const getNodeAngle = (nodeName: string): number => {
+    let hash = 2166136261;
+    for (let i = 0; i < nodeName.length; i++) {
+      hash ^= nodeName.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return Math.abs(hash % 360);
+  };
+
+  // Consistent Hashing mapping: find first node clockwise from partition angle
+  const getPartitionOwner = (partIdx: number) => {
+    if (nodes.length === 0) return "none";
+    const partAngle = partIdx * 45; // 8 partitions: 0, 45, 90, 135, 180, 225, 270, 315
+
+    const nodeMappings = nodes.map(name => ({
+      name,
+      angle: getNodeAngle(name)
+    }));
+
+    // Sort ascending by angle
+    nodeMappings.sort((a, b) => a.angle - b.angle);
+
+    // Find first node clockwise
+    for (const node of nodeMappings) {
+      if (node.angle >= partAngle) {
+        return node.name;
+      }
+    }
+    // Wrap around to first node
+    return nodeMappings[0].name;
+  };
+
   const addNode = () => {
-    const name = newNodeName.trim() || `coordinator-node-${Math.random().toString(36).substr(2, 5)}`;
+    const name = newNodeName.trim();
+    if (!name) return;
     if (nodes.includes(name)) return;
+
+    const angle = getNodeAngle(name);
     const updated = [...nodes, name];
     setNodes(updated);
     setNewNodeName("");
     setRebalanceLog(prev => [
-      `Node '${name}' registered lease in etcd.`,
-      `Rebalancing 4 partition slots across ${updated.length} active nodes...`,
+      `Node '${name}' registered lease. Hashed to ${angle}°`,
+      `Rebalancing 8 partition slots across ${updated.length} active nodes...`,
       ...prev
     ]);
   };
 
-  // Remove node from hash ring
   const removeNode = (target: string) => {
     if (nodes.length <= 1) {
-      setRebalanceLog(prev => ["Cannot remove last node. Cluster needs at least 1 active coordinator.", ...prev]);
+      setRebalanceLog(prev => ["Cannot remove last node. Ring must maintain consensus.", ...prev]);
       return;
     }
     const updated = nodes.filter(n => n !== target);
     setNodes(updated);
     setRebalanceLog(prev => [
-      `Node '${target}' lease expired/fenced.`,
-      `Rebalancing 4 partition slots across ${updated.length} active nodes...`,
+      `Fenced node '${target}'. Lease expired.`,
+      `Rebalancing 8 partition slots across ${updated.length} active nodes...`,
       ...prev
     ]);
   };
 
-  // Map partitions dynamically based on simple index hashing
-  const getPartitionOwner = (partIdx: number) => {
-    if (nodes.length === 0) return "none";
-    // Consistent hashing simulator mapping
-    const hash = (partIdx * 7) % nodes.length;
-    return nodes[hash];
+  // ==========================================
+  // 2. DYNAMIC COMPONENT CUSTOMIZER
+  // ==========================================
+  const [selectedComp, setSelectedComp] = useState<"uploader" | "player">("uploader");
+  
+  // Customizer styling props state
+  const [uploaderTitle, setUploaderTitle] = useState<string>("Ingest Video Segment");
+  const [bgColor, setBgColor] = useState<string>("#09090b");
+  const [borderColor, setBorderColor] = useState<string>("#27272a");
+  const [btnBgColor, setBtnBgColor] = useState<string>("#ffffff");
+  const [btnTextColor, setBtnTextColor] = useState<string>("#000000");
+  const [borderRadius, setBorderRadius] = useState<number>(8); // in px
+  const [paddingSize, setPaddingSize] = useState<number>(24); // in px
+  
+  const [playerAccent, setPlayerAccent] = useState<string>("#ffffff");
+  const [playerVolume, setPlayerVolume] = useState<number>(80);
+  const [playerAspectRatio, setPlayerAspectRatio] = useState<"16/9" | "4/3" | "1/1">("16/9");
+
+  // Mock interactive simulation actions
+  const [mockFileName, setMockFileName] = useState<string>("");
+  const [mockUploadProgress, setMockUploadProgress] = useState<number>(-1);
+  const [mockJobState, setMockJobState] = useState<string>("");
+
+  const handleMockUpload = () => {
+    setMockFileName("raw_camera_source.mp4");
+    setMockUploadProgress(0);
+    setMockJobState("UPLOADING_CHUNKS");
   };
 
-  // --- React Component Customizer State ---
-  const [selectedComponent, setSelectedComponent] = useState<"uploader" | "player">("uploader");
-  const [gatewayUrl, setGatewayUrl] = useState<string>("http://localhost:8080");
-  const [maxSizeGb, setMaxSizeGb] = useState<number>(5);
-  const [hwAccel, setHwAccel] = useState<string>("none");
-  const [themeStyle, setThemeStyle] = useState<string>("stark-black-white");
-  const [isCopied, setIsCopied] = useState<boolean>(false);
+  useEffect(() => {
+    if (mockUploadProgress >= 0 && mockUploadProgress < 100) {
+      const timer = setTimeout(() => {
+        setMockUploadProgress(prev => prev + 25);
+      }, 600);
+      return () => clearTimeout(timer);
+    } else if (mockUploadProgress === 100) {
+      setMockJobState("COMPILING_HLS");
+      const timer = setTimeout(() => {
+        setMockJobState("COMPLETED");
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [mockUploadProgress]);
 
-  // Copy code utility
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const resetMockUpload = () => {
+    setMockFileName("");
+    setMockUploadProgress(-1);
+    setMockJobState("");
   };
 
-  // Code generator templates
-  const generatedUploaderCode = `import { VideoUploader } from '@transcoder/ui-sdk';
+  const [isCodeCopied, setIsCodeCopied] = useState<boolean>(false);
+
+  const customStyleClasses = {
+    uploader: {
+      container: `border border-[${borderColor}] bg-[${bgColor}] rounded-[${borderRadius}px] p-[${paddingSize}px]`,
+      btn: `bg-[${btnBgColor}] text-[${btnTextColor}] hover:opacity-90 font-mono text-xs font-bold py-2.5 px-5 rounded`
+    },
+    player: {
+      accent: playerAccent,
+      aspect: playerAspectRatio
+    }
+  };
+
+  const generatedJSXCode = selectedComp === "uploader" 
+    ? `import { VideoUploader } from '@transcoder/ui-sdk';
 
 function App() {
   return (
-    <div className="max-w-2xl mx-auto p-8">
-      <VideoUploader 
-        gatewayUrl="${gatewayUrl}"
-        maxSizeGb={${maxSizeGb}}
-        theme="${themeStyle}"
-        classNames={{
-          container: "border border-zinc-800 bg-zinc-950 p-6 rounded-lg",
-          dropZone: "border-2 border-dashed border-zinc-700 hover:border-white transition-all",
-          uploadBtn: "bg-white text-black hover:bg-neutral-200 transition-colors font-mono"
-        }}
-        onUploadComplete={(job) => {
-          console.log("Ingestion started:", job.job_id);
-        }}
-      />
-    </div>
+    <VideoUploader 
+      gatewayUrl="http://localhost:8080"
+      maxSizeGb={5}
+      title="${uploaderTitle}"
+      style={{
+        backgroundColor: "${bgColor}",
+        borderColor: "${borderColor}",
+        borderRadius: "${borderRadius}px",
+        padding: "${paddingSize}px"
+      }}
+      buttonStyle={{
+        backgroundColor: "${btnBgColor}",
+        color: "${btnTextColor}"
+      }}
+      onUploadComplete={(job) => {
+        console.log("Upload completed, Job ID:", job.job_id);
+      }}
+    />
   );
-}`;
-
-  const generatedPlayerCode = `import { VideoPlayer } from '@transcoder/ui-sdk';
+}`
+    : `import { VideoPlayer } from '@transcoder/ui-sdk';
 
 function App() {
   return (
-    <div className="max-w-4xl mx-auto aspect-video">
-      <VideoPlayer 
-        src="${gatewayUrl}/playback/master.m3u8"
-        hwAccel="${hwAccel}"
-        autoPlay={false}
-        theme="${themeStyle}"
-        onQualityChange={(level) => {
-          console.log("Quality updated to:", level.height);
-        }}
-      />
-    </div>
+    <VideoPlayer 
+      src="http://localhost:8080/playback/master.m3u8"
+      aspectRatio="${playerAspectRatio}"
+      accentColor="${playerAccent}"
+      autoPlay={false}
+      onPlay={() => console.log("HLS stream playback started")}
+    />
   );
 }`;
 
-  // --- Architecture Explorer Hover State ---
+  // ==========================================
+  // 3. ARCHITECTURE PIPELINE MAP
+  // ==========================================
   const [activeArchStage, setActiveArchStage] = useState<string>("ingest");
   const stageExplanations: Record<string, { title: string; desc: string; metrics: string }> = {
     ingest: {
@@ -141,7 +233,7 @@ function App() {
     },
     coordinator: {
       title: "2. Consistent Hash Ring Slicing",
-      desc: "etcd tracks registered coordinator leases. Upload events are dispatched via partition keys. The lease-owning coordinator takes an etcd lock, relocates faststart index, and slices the MP4 into 5s sub-segments.",
+      desc: "etcd tracks registered coordinator leases. Upload events are dispatched via partition keys. The lease-owning coordinator takes an etcd lock, relocates faststart index, and slices the MP4 into 5-second GOP-aligned chunks.",
       metrics: "Ring Partitions: 1024 slots | Lock TTL: 5s"
     },
     messagebus: {
@@ -161,8 +253,10 @@ function App() {
     }
   };
 
-  // --- Documentation Search/Toggles ---
-  const [docTab, setDocTab] = useState<"quickstart" | "deployment" | "isolation">("quickstart");
+  // ==========================================
+  // 4. EMBEDDED SYSTEM MANUALS
+  // ==========================================
+  const [docTab, setDocTab] = useState<"quickstart" | "deployment" | "master">("quickstart");
 
   return (
     <main className="relative min-h-screen bg-black text-foreground overflow-x-hidden">
@@ -225,44 +319,29 @@ function App() {
             SEE DOCUMENTATION
           </a>
         </div>
-
-        {/* Feature stats micro-bento */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-20 w-full">
-          {[
-            { label: "WAN DATA LEAK", value: "0%" },
-            { label: "CRR SYNC TIME", value: "<2s" },
-            { label: "COMPILER Presets", value: "1080p, 720p, 480p" },
-            { label: "MAX INGEST LOAD", value: "50GB/Job" }
-          ].map((item, idx) => (
-            <div key={idx} className="glass-card p-5 rounded-lg text-left border border-zinc-900 bg-zinc-950/20">
-              <span className="block font-mono text-[10px] text-zinc-500 tracking-wider mb-1">{item.label}</span>
-              <span className="text-xl font-bold text-white font-mono">{item.value}</span>
-            </div>
-          ))}
-        </div>
       </section>
 
-      {/* Interactive Code customizer playground */}
+      {/* Dynamic Style customizer & Live visual preview */}
       <section id="customizer" className="border-t border-zinc-900/60 py-24 px-6 max-w-7xl mx-auto">
         <div className="mb-12">
-          <h2 className="text-3xl font-bold tracking-tight text-white">Interactive Customizer</h2>
-          <p className="mt-2 text-zinc-400 text-sm">Configure components dynamically and copy integration-ready React code snippets.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-white">Visual Customizer & Simulator</h2>
+          <p className="mt-2 text-zinc-400 text-sm">Style the components in real-time. Adjust colors, layout shapes, and test visual component state simulations.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left panel options */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Controls Panel */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="glass-card p-6 rounded-lg bg-zinc-950/20 flex flex-col gap-6">
               <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
                 <button 
-                  onClick={() => setSelectedComponent("uploader")}
-                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComponent === "uploader" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                  onClick={() => setSelectedComp("uploader")}
+                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComp === "uploader" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
                 >
                   VIDEO_UPLOADER
                 </button>
                 <button 
-                  onClick={() => setSelectedComponent("player")}
-                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComponent === "player" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                  onClick={() => setSelectedComp("player")}
+                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComp === "player" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
                 >
                   VIDEO_PLAYER
                 </button>
@@ -270,79 +349,247 @@ function App() {
 
               <div className="h-px bg-zinc-900" />
 
-              {/* Shared parameters */}
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="block font-mono text-[10px] text-zinc-500 mb-1">GATEWAY_ENDPOINT</label>
-                  <input 
-                    type="text" 
-                    value={gatewayUrl} 
-                    onChange={(e) => setGatewayUrl(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
-                  />
-                </div>
-
-                {selectedComponent === "uploader" ? (
+              {selectedComp === "uploader" ? (
+                <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">MAX_UPLOAD_SIZE (GB)</label>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">COMP_TITLE_TEXT</label>
+                    <input 
+                      type="text"
+                      value={uploaderTitle}
+                      onChange={(e) => setUploaderTitle(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">BG_COLOR</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="color"
+                        value={bgColor}
+                        onChange={(e) => setBgColor(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-8 h-8 rounded"
+                      />
+                      <span className="font-mono text-xs text-zinc-400">{bgColor}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">BORDER_COLOR</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="color"
+                        value={borderColor}
+                        onChange={(e) => setBorderColor(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-8 h-8 rounded"
+                      />
+                      <span className="font-mono text-xs text-zinc-400">{borderColor}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-mono text-[10px] text-zinc-500 mb-1">BTN_BG</label>
+                      <input 
+                        type="color"
+                        value={btnBgColor}
+                        onChange={(e) => setBtnBgColor(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-8 h-8 rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-[10px] text-zinc-500 mb-1">BTN_TEXT</label>
+                      <input 
+                        type="color"
+                        value={btnTextColor}
+                        onChange={(e) => setBtnTextColor(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-8 h-8 rounded"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">CORNER_RADIUS ({borderRadius}px)</label>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="20"
+                      value={borderRadius}
+                      onChange={(e) => setBorderRadius(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">CONTAINER_PADDING ({paddingSize}px)</label>
+                    <input 
+                      type="range"
+                      min="12"
+                      max="48"
+                      value={paddingSize}
+                      onChange={(e) => setPaddingSize(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">PLAYER_ACCENT_COLOR</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="color"
+                        value={playerAccent}
+                        onChange={(e) => setPlayerAccent(e.target.value)}
+                        className="bg-transparent border-0 cursor-pointer w-8 h-8 rounded"
+                      />
+                      <span className="font-mono text-xs text-zinc-400">{playerAccent}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">ASPECT_RATIO</label>
                     <select 
-                      value={maxSizeGb} 
-                      onChange={(e) => setMaxSizeGb(Number(e.target.value))}
+                      value={playerAspectRatio}
+                      onChange={(e) => setPlayerAspectRatio(e.target.value as any)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
                     >
-                      <option value={1}>1 GB</option>
-                      <option value={5}>5 GB</option>
-                      <option value={15}>15 GB</option>
-                      <option value={50}>50 GB</option>
+                      <option value="16/9">Landscape (16:9)</option>
+                      <option value="4/3">Standard (4:3)</option>
+                      <option value="1/1">Square (1:1)</option>
                     </select>
                   </div>
-                ) : (
                   <div>
-                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">HARDWARE_ACCELERATION</label>
-                    <select 
-                      value={hwAccel} 
-                      onChange={(e) => setHwAccel(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
-                    >
-                      <option value="none">None (Software libx264)</option>
-                      <option value="videotoolbox">Apple Videotoolbox</option>
-                      <option value="nvenc">NVIDIA NVENC</option>
-                      <option value="vaapi">VAAPI</option>
-                    </select>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">DEFAULT_VOLUME ({playerVolume}%)</label>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={playerVolume}
+                      onChange={(e) => setPlayerVolume(Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
                   </div>
-                )}
-
-                <div>
-                  <label className="block font-mono text-[10px] text-zinc-500 mb-1">THEME_PROFILE</label>
-                  <select 
-                    value={themeStyle} 
-                    onChange={(e) => setThemeStyle(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
-                  >
-                    <option value="stark-black-white">Stark Minimalist (B&W)</option>
-                    <option value="glassmorphic">Glassmorphic Translucent</option>
-                    <option value="bordered-zinc">Thin Slate Border</option>
-                  </select>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Right code panel */}
-          <div className="lg:col-span-8 flex flex-col">
-            <div className="glass-card flex-1 rounded-lg border border-zinc-900 bg-zinc-950/20 overflow-hidden flex flex-col">
+          {/* Visual Component Render & Generated Code panels */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+            {/* Visual simulation box */}
+            <div className="glass-card rounded-lg p-8 border border-zinc-900 bg-zinc-950/20 flex flex-col items-center justify-center min-h-[300px]">
+              <span className="font-mono text-[9px] text-zinc-500 mb-4 self-start tracking-wider">LIVE_VISUAL_PREVIEW //</span>
+
+              {selectedComp === "uploader" ? (
+                <div 
+                  style={{
+                    backgroundColor: bgColor,
+                    borderColor: borderColor,
+                    borderRadius: `${borderRadius}px`,
+                    padding: `${paddingSize}px`
+                  }}
+                  className="w-full max-w-md border transition-all duration-300 flex flex-col items-center text-center gap-4"
+                >
+                  <span className="font-mono text-xs text-zinc-400 font-bold block">{uploaderTitle}</span>
+                  
+                  {mockUploadProgress === -1 ? (
+                    <>
+                      <div className="w-full border border-dashed border-zinc-800 rounded-lg p-8 flex flex-col items-center gap-2 bg-black/40">
+                        <UploadCloud className="w-8 h-8 text-zinc-500" />
+                        <span className="text-[10px] text-zinc-400 font-sans">Drag files here or click to browse</span>
+                      </div>
+                      <button 
+                        onClick={handleMockUpload}
+                        style={{
+                          backgroundColor: btnBgColor,
+                          color: btnTextColor
+                        }}
+                        className="py-2 px-5 font-mono text-xs font-bold rounded transition-colors"
+                      >
+                        BROWSE FILE
+                      </button>
+                    </>
+                  ) : (
+                    <div className="w-full flex flex-col gap-3">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                        <span className="truncate max-w-[180px]">{mockFileName}</span>
+                        <span>{mockUploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-white h-full transition-all duration-300"
+                          style={{ width: `${mockUploadProgress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="font-mono text-[9px] text-zinc-500 tracking-wider">
+                          STATUS: {mockJobState}
+                        </span>
+                        {mockJobState === "COMPLETED" && (
+                          <button 
+                            onClick={resetMockUpload}
+                            className="text-[9px] font-mono text-white underline hover:text-zinc-300"
+                          >
+                            RESET
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div 
+                  style={{
+                    aspectRatio: playerAspectRatio === "16/9" ? 16/9 : playerAspectRatio === "4/3" ? 4/3 : 1
+                  }}
+                  className="w-full max-w-md bg-zinc-950 border border-zinc-900 rounded-lg overflow-hidden flex flex-col justify-between transition-all duration-300 relative group"
+                >
+                  {/* Aspect video canvas */}
+                  <div className="flex-1 flex items-center justify-center relative bg-black">
+                    <Play 
+                      className="w-12 h-12 transition-transform group-hover:scale-110" 
+                      style={{ color: playerAccent }}
+                    />
+                    
+                    {/* Accent glowing aura */}
+                    <div 
+                      className="absolute inset-0 opacity-10 blur-xl pointer-events-none"
+                      style={{ backgroundColor: playerAccent }}
+                    />
+                  </div>
+
+                  {/* Player footer controls */}
+                  <div className="bg-zinc-900 px-4 py-3 border-t border-zinc-950 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Play className="w-3.5 h-3.5 text-white" />
+                      <div className="w-24 bg-zinc-800 h-1 rounded-full overflow-hidden">
+                        <div className="h-full w-[40%]" style={{ backgroundColor: playerAccent }} />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-zinc-400">
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <Maximize className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Generated Code Block panel */}
+            <div className="glass-card rounded-lg border border-zinc-900 bg-zinc-950/20 overflow-hidden flex flex-col">
               <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-900 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-zinc-400" />
                   <span className="font-mono text-xs text-zinc-400">
-                    {selectedComponent === "uploader" ? "VideoUploader.tsx" : "VideoPlayer.tsx"}
+                    {selectedComp === "uploader" ? "VideoUploader.tsx" : "VideoPlayer.tsx"}
                   </span>
                 </div>
                 <button 
-                  onClick={() => copyToClipboard(selectedComponent === "uploader" ? generatedUploaderCode : generatedPlayerCode)}
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedJSXCode);
+                    setIsCodeCopied(true);
+                    setTimeout(() => setIsCodeCopied(false), 2000);
+                  }}
                   className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors rounded text-[10px] font-mono flex items-center gap-1.5"
                 >
-                  {isCopied ? (
+                  {isCodeCopied ? (
                     <>
                       <Check className="w-3 h-3 text-green-400" />
                       COPIED
@@ -355,8 +602,8 @@ function App() {
                   )}
                 </button>
               </div>
-              <div className="p-6 font-mono text-xs text-zinc-300 overflow-x-auto whitespace-pre leading-relaxed bg-zinc-950/40 flex-1">
-                {selectedComponent === "uploader" ? generatedUploaderCode : generatedPlayerCode}
+              <div className="p-6 font-mono text-xs text-zinc-300 overflow-x-auto whitespace-pre leading-relaxed bg-zinc-950/40">
+                {generatedJSXCode}
               </div>
             </div>
           </div>
@@ -366,10 +613,9 @@ function App() {
       {/* Consistent Hashing Ring Simulator */}
       <section id="hashing" className="border-t border-zinc-900/60 py-24 px-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left panel text and ring visualization */}
+          {/* Ring circle */}
           <div className="lg:col-span-6 flex flex-col items-center">
             <div className="w-full max-w-md aspect-square relative flex items-center justify-center">
-              {/* Ring circle */}
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
                 <circle 
                   cx="100" 
@@ -379,15 +625,15 @@ function App() {
                   stroke="#141416" 
                   strokeWidth="12" 
                 />
-                {/* 4 partition slices mapped on the ring circle */}
-                {[0, 1, 2, 3].map((part) => {
-                  const strokeDasharray = `${2 * Math.PI * 70 / 4 - 3} ${2 * Math.PI * 70 / 4 + 3}`;
-                  const strokeDashoffset = `${part * (2 * Math.PI * 70 / 4)}`;
+                {/* 8 partition sectors mapped on the ring circle */}
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((part) => {
+                  const strokeDasharray = `${2 * Math.PI * 70 / 8 - 3} ${2 * Math.PI * 70 / 8 + 3}`;
+                  const strokeDashoffset = `${part * (2 * Math.PI * 70 / 8)}`;
                   const isHovered = activePartition === part;
                   const owner = getPartitionOwner(part);
                   
-                  // Color codes for active partitions based on owner index
-                  const colors = ["#ffffff", "#cccccc", "#888888", "#555555"];
+                  // Shade codes for active partitions based on owner index
+                  const colors = ["#ffffff", "#cccccc", "#888888", "#555555", "#333333"];
                   const ownerIndex = nodes.indexOf(owner);
                   const strokeColor = ownerIndex !== -1 ? colors[ownerIndex % colors.length] : "#1a1a1a";
 
@@ -408,6 +654,25 @@ function App() {
                     />
                   );
                 })}
+
+                {/* Node coordinates mapped around circle boundary */}
+                {nodes.map((node) => {
+                  const angle = getNodeAngle(node);
+                  const radians = (angle * Math.PI) / 180;
+                  const x = 100 + 70 * Math.cos(radians);
+                  const y = 100 + 70 * Math.sin(radians);
+                  return (
+                    <circle 
+                      key={node}
+                      cx={x} 
+                      cy={y} 
+                      r="5" 
+                      fill="#ffffff" 
+                      stroke="#000000"
+                      strokeWidth="1.5"
+                    />
+                  );
+                })}
               </svg>
 
               {/* Ring core description label */}
@@ -419,11 +684,12 @@ function App() {
                     <span className="font-mono text-xs text-zinc-300 mt-1 truncate max-w-[200px]">
                       {getPartitionOwner(activePartition)}
                     </span>
+                    <span className="font-mono text-[9px] text-zinc-500 mt-0.5">ANGLE: {activePartition * 45}°</span>
                   </>
                 ) : (
                   <>
                     <Network className="w-8 h-8 text-zinc-500 mb-1" />
-                    <span className="font-mono text-[10px] text-zinc-400">1024_PARTITIONS_RING</span>
+                    <span className="font-mono text-[10px] text-zinc-400">8_PARTITIONS_RING</span>
                     <span className="text-[9px] text-zinc-500 font-mono mt-1">HOVER SECTOR TO INSPECT</span>
                   </>
                 )}
@@ -431,12 +697,12 @@ function App() {
             </div>
           </div>
 
-          {/* Right panel nodes dashboard list & logs */}
+          {/* Nodes panel */}
           <div className="lg:col-span-6 flex flex-col gap-6">
             <div>
               <h2 className="text-3xl font-bold tracking-tight text-white">Consistent Hash Ring</h2>
               <p className="mt-2 text-zinc-400 text-sm">
-                Active coordinators lock and lease partition slices dynamically. When nodes scale or drop, partition segments automatically rebalance without active session interruption.
+                Active coordinators lock and lease partition slices dynamically. We calculate coordinator slot placements via deterministic FNV-1a hashing on [0°, 360°] angles.
               </p>
             </div>
 
@@ -444,14 +710,18 @@ function App() {
             <div className="glass-card p-6 rounded-lg bg-zinc-950/20">
               <span className="block font-mono text-[10px] text-zinc-500 tracking-wider mb-3">ACTIVE_COORDINATORS</span>
               <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-2">
-                {nodes.map((node, index) => {
-                  const nodePartitions = [0, 1, 2, 3].filter(p => getPartitionOwner(p) === node);
+                {nodes.map((node) => {
+                  const angle = getNodeAngle(node);
+                  const nodePartitions = [0, 1, 2, 3, 4, 5, 6, 7].filter(p => getPartitionOwner(p) === node);
                   return (
                     <div key={node} className="flex items-center justify-between border border-zinc-900 bg-zinc-950 p-3 rounded">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Server className="w-4 h-4 text-white flex-shrink-0" />
-                        <span className="font-mono text-xs text-zinc-300 truncate">{node}</span>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-mono text-xs text-zinc-300 truncate">{node}</span>
+                          <span className="font-mono text-[9px] text-zinc-500">Hash Angle: {angle}°</span>
+                        </div>
+                        <div className="flex gap-1 flex-wrap flex-shrink-0">
                           {nodePartitions.map(p => (
                             <span key={p} className="px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400">
                               P{p}
@@ -512,7 +782,6 @@ function App() {
           {/* SVG Ingest Route Visualizer */}
           <div className="lg:col-span-8 glass-card p-8 rounded-lg bg-zinc-950/20 flex flex-col justify-between">
             <div className="flex flex-wrap gap-4 items-center justify-around py-12 relative">
-              {/* Connector Wires (Dotted lines in backdrop) */}
               <div className="absolute top-1/2 left-[10%] right-[10%] h-px border-t border-dashed border-zinc-900 -translate-y-1/2 z-0" />
 
               {[
@@ -565,11 +834,11 @@ function App() {
         </div>
       </section>
 
-      {/* Fully styled documentation viewer */}
+      {/* Comprehensive System Manuals Explorer */}
       <section id="docs" className="border-t border-zinc-900/60 py-24 px-6 max-w-7xl mx-auto">
         <div className="mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-white">System Documentation</h2>
-          <p className="mt-2 text-zinc-400 text-sm">Read guides regarding setups, SDK integration details, and regional configuration files.</p>
+          <p className="mt-2 text-zinc-400 text-sm">Read the full master production reference guides regarding regional setup, deployment specifications, and SDK integration APIs.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -578,7 +847,7 @@ function App() {
             {[
               { id: "quickstart", label: "1. Developer Integration", icon: BookOpen },
               { id: "deployment", label: "2. Multi-Region Deployment", icon: Globe },
-              { id: "isolation", label: "3. Regional Config Schema", icon: Settings }
+              { id: "master", label: "3. SRE Master Reference", icon: Settings }
             ].map((tab) => {
               const IconComp = tab.icon;
               return (
@@ -594,68 +863,142 @@ function App() {
             })}
           </div>
 
-          {/* Doc view canvas */}
+          {/* Detailed Document Content Panels */}
           <div className="lg:col-span-9">
-            <div className="glass-card rounded-lg border border-zinc-900 p-8 bg-zinc-950/20 font-sans leading-relaxed text-zinc-300 text-sm max-h-[500px] overflow-y-auto">
+            <div className="glass-card rounded-lg border border-zinc-900 p-8 bg-zinc-950/20 font-sans leading-relaxed text-zinc-300 text-sm max-h-[600px] overflow-y-auto flex flex-col gap-6">
               {docTab === "quickstart" && (
-                <div className="flex flex-col gap-6">
-                  <h3 className="text-xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">DEVELOPER_INTEGRATION_GUIDE</h3>
-                  <p>This details the ingestion API session configuration. Use this pattern to integrate client uploader libraries to regional gateways.</p>
+                <>
+                  <h3 className="text-2xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">DEVELOPER_INTEGRATION_GUIDE</h3>
+                  <p className="text-zinc-400 italic">This guide details the ingestion API session configuration, Direct S3 Chunk Ingestion, and real-time SSE progress tracking.</p>
                   
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-white mb-2">// 1. REQUEST PRESIGNED UPLOAD SESSION</h4>
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">1. Ingestion Session Creation</h4>
+                    <p>Before uploading, clients negotiate a session token. Pass file size and file name details to avoid unauthorized storage floods:</p>
                     <pre className="border border-zinc-900 bg-zinc-950 p-4 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
 {`POST /api/jobs/upload-session
+Headers: Content-Type: application/json
 Payload:
 {
   "file_size_bytes": 104857600, // 100MB
-  "file_name": "source.mp4"
+  "file_name": "marketing_reel.mp4",
+  "content_type": "video/mp4"
 }
 
-Response (Session Token & Partition ID info):
+Response (Session Token & Part Info):
 {
-  "job_id": "us-east:a6f9f38f-...",
-  "session_token": "eyJhbGciOi...",
-  "part_size": 26214400,
-  "total_parts": 4
+  "job_id": "us-east-1:7ff8b548-c8ee-449e-b7d1-c27633f81e3a",
+  "session_token": "eyJhbGciOiJIUzI1NiIsIn...", // Secure JWT Token
+  "part_size": 52428800,                         // Part size in bytes (50MB)
+  "total_parts": 2                               // Client must split file into 2 parts
 }`}
                     </pre>
                   </div>
 
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-white mb-2">// 2. REQUEST PRESIGNED UPLOAD URL BATCH</h4>
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">2. Direct S3 Chunk Upload</h4>
+                    <p>Clients request presigned URLs by presenting the JWT session token, and upload chunks directly using standard PUT requests:</p>
                     <pre className="border border-zinc-900 bg-zinc-950 p-4 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
-{`POST /api/jobs/{job_id}/urls?start=1&count=4
-Headers:
-Authorization: Bearer <session_token>
+{`POST /api/jobs/{job_id}/urls?start=1&count=2
+Headers: Authorization: Bearer <session_token>
 
 Response:
 {
-  "part_numbers": [1, 2, 3, 4],
+  "part_numbers": [1, 2],
   "urls": [
-    "http://minio:9000/transcoder/jobs/part_1...",
-    "http://minio:9000/transcoder/jobs/part_2..."
+    "http://minio-ip:9000/transcoder-bucket/jobs/.../raw/source.mp4?partNumber=1&uploadId=...",
+    "http://minio-ip:9000/transcoder-bucket/jobs/.../raw/source.mp4?partNumber=2&uploadId=..."
   ]
 }`}
                     </pre>
                   </div>
-                </div>
+
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">3. Client JavaScript Integration Code</h4>
+                    <p>Full implementation workflow for direct uploads and progress listening via Server-Sent Events (SSE):</p>
+                    <pre className="border border-zinc-900 bg-zinc-950 p-4 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
+{`async function uploadAndTranscode(file, gatewayUrl) {
+  // Step 1: Initialize Session
+  const sessionRes = await fetch(\`\${gatewayUrl}/api/jobs/upload-session\`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_size_bytes: file.size, file_name: file.name })
+  });
+  const { job_id, session_token, part_size, total_parts } = await sessionRes.json();
+
+  // Step 2: Fetch Presigned URLs
+  const urlRes = await fetch(\`\${gatewayUrl}/api/jobs/\${job_id}/urls?start=1&count=\${total_parts}\`, {
+    method: "POST",
+    headers: { "Authorization": \`Bearer \${session_token}\` }
+  });
+  const { urls } = await urlRes.json();
+
+  // Step 3: Upload chunks in parallel
+  const completedParts = [];
+  const uploadPromises = [];
+  for (let i = 0; i < total_parts; i++) {
+    const start = i * part_size;
+    const end = Math.min(start + part_size, file.size);
+    const chunk = file.slice(start, end);
+
+    const p = fetch(urls[i], { method: "PUT", body: chunk })
+      .then(res => {
+        const etag = res.headers.get("ETag");
+        completedParts.push({ part_number: i + 1, etag });
+      });
+    uploadPromises.push(p);
+  }
+  await Promise.all(uploadPromises);
+
+  // Step 4: Complete Session
+  await fetch(\`\${gatewayUrl}/api/jobs/\${job_id}/complete\`, {
+    method: "POST",
+    headers: {
+      "Authorization": \`Bearer \${session_token}\`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ parts: completedParts })
+  });
+
+  // Step 5: Listen to SSE progress
+  const source = new EventSource(\`\${gatewayUrl}/progress/\${job_id}\`);
+  source.onmessage = (e) => {
+    const update = JSON.parse(e.data);
+    console.log(\`Transcode progress: \${update.pct}%\`);
+    if (update.phase === "COMPLETED") {
+      source.close();
+      console.log("Transcoding finished successfully!");
+    }
+  };
+}`}
+                    </pre>
+                  </div>
+                </>
               )}
 
               {docTab === "deployment" && (
-                <div className="flex flex-col gap-6">
-                  <h3 className="text-xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">MULTI_REGION_DEPLOYMENT_GUIDE</h3>
-                  <p>Network layout structures and bucket-to-bucket cross-region replication configs to enforce data gravity constraints.</p>
-                  
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-white mb-2">// AWS S3 CRR METADATA POLICY</h4>
+                <>
+                  <h3 className="text-2xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">MULTI_REGION_DEPLOYMENT_GUIDE</h3>
+                  <p className="text-zinc-400 italic">This guide details network routing, configurations, bucket replication policies, and disaster failovers.</p>
+
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">1. Geo-DNS & Storage Ingest routing</h4>
+                    <ul className="list-disc pl-5 flex flex-col gap-2">
+                      <li>Use Geolocation DNS routing (e.g. AWS Route 53 Geolocation) or Anycast IPs to resolve API gateway requests to the closest regional cluster.</li>
+                      <li>Presigned URLs point to region-local S3 buckets, keeping heavy video chunk uploads local to avoid WAN packet routing latency.</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">2. AWS S3 Cross-Region Replication (CRR) Policy</h4>
+                    <p>Apply this configuration to S3 source buckets to replicate lightweight master playlist files, while explicitly excluding heavy media `.ts` segment chunks:</p>
                     <pre className="border border-zinc-900 bg-zinc-950 p-4 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
 {`{
   "Role": "arn:aws:iam::123456789012:role/S3TranscoderReplicationRole",
   "Rules": [
     {
-      "ID": "ReplicateCompletedManifestsOnly",
+      "ID": "ReplicateLightweightMetadataOnly",
       "Status": "Enabled",
+      "Priority": 1,
       "Filter": {
         "And": {
           "Prefix": "jobs/",
@@ -665,7 +1008,8 @@ Response:
         }
       },
       "Destination": {
-        "Bucket": "arn:aws:s3:::transcoder-eu-west"
+        "Bucket": "arn:aws:s3:::apple-transcoder-eu-west",
+        "StorageClass": "STANDARD"
       }
     }
   ]
@@ -673,51 +1017,74 @@ Response:
                     </pre>
                   </div>
 
-                  <p className="text-xs text-zinc-500">
-                    Note: Video chunks (.ts) remain local to the source region's bucket. Only the master .m3u8 playlist file is tagged with replicate=true to initiate the AWS replication rules.
-                  </p>
-                </div>
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">3. SRE Disaster Failover Workflow</h4>
+                    <ul className="list-disc pl-5 flex flex-col gap-2">
+                      <li>Update Geo-DNS routing configs to divert traffic away from the affected region.</li>
+                      <li>Active clients will receive connections from the healthy region, and can instantly upload files from scratch.</li>
+                      <li>Replicated manifest entries are accessible from the destination bucket, guaranteeing playback continuity for all completed videos.</li>
+                    </ul>
+                  </div>
+                </>
               )}
 
-              {docTab === "isolation" && (
-                <div className="flex flex-col gap-6">
-                  <h3 className="text-xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">REGIONAL_CONFIG_SCHEMA</h3>
-                  <p>Configuration profile settings to define backing database locations, etcd lock TTLs, and NATS JetStream server endpoints.</p>
-                  
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-white mb-2">// configs/us-east.yaml</h4>
+              {docTab === "master" && (
+                <>
+                  <h3 className="text-2xl font-bold text-white border-b border-zinc-900 pb-3 font-mono">MASTER_PRODUCTION_REFERENCE_MANUAL</h3>
+                  <p className="text-zinc-400 italic">Core operational configurations, consensus models, consistent hash ring topologies, and pluggable bus interfaces.</p>
+
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">1. Unified Config Schema</h4>
+                    <p>Production cluster configuration settings detailing etcd lease times, NATS stream division counts, and worker thread quotas:</p>
                     <pre className="border border-zinc-900 bg-zinc-950 p-4 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
-{`role: "gateway"
-region: "us-east"
+{`# config.yaml
+role: "gateway"
+region: "us-east-1"
+message_bus_provider: "nats"
 
 redis:
-  addrs: ["127.0.0.1:6379"]
-  pool_size: 10
+  addrs: ["redis-us-east.internal:6379"]
+  password: "prod-redis-password"
+  pool_size: 100
 
 nats:
-  urls: ["nats://127.0.0.1:4222"]
+  urls: ["nats://nats-us-east.internal:4222"]
 
 etcd:
-  endpoints: ["127.0.0.1:2379"]
+  endpoints: ["etcd-us-east.internal:2379"]
 
 object_store:
-  endpoint: "127.0.0.1:9000"
-  bucket: "transcoder-us-east"
+  endpoint: "s3.us-east-1.amazonaws.com"
+  bucket: "apple-transcoder-us-east"
+  region: "us-east-1"
+  use_ssl: true
 
 coordinator:
-  partition_count: 4
-  slicing_lock_ttl_sec: 5
+  partition_count: 1024
+  slicing_semaphore: 50
+  nats_shard_count: 4
   etcd_lease_ttl_sec: 5
+  slicing_lock_ttl_sec: 10
 
 worker:
-  scratch_dir: "/tmp/scratch-us-east"
-  min_disk_free_gb: 1
-  watchdog_interval_sec: 2
-  max_task_duration_min: 2
-  concurrent_tasks: 4`}
+  scratch_dir: "/tmp/scratch"
+  min_disk_free_gb: 20
+  watchdog_interval_sec: 10
+  max_task_duration_min: 5
+  concurrent_tasks: 8
+  hw_accel: "nvenc" # "nvenc" | "videotoolbox" | "none"`}
                     </pre>
                   </div>
-                </div>
+
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-bold text-white font-mono border-l-2 border-white pl-2">2. Pluggable Infrastructure Drivers</h4>
+                    <p>Our Go engine utilizes abstract interfaces to support swapping subsystems. Developers can configure AWS SQS and DynamoDB by mapping configuration rules:</p>
+                    <ul className="list-disc pl-5 flex flex-col gap-2">
+                      <li><strong>MessageBus</strong>: Swap NATS for SQS seamlessly under high load networks.</li>
+                      <li><strong>StateStore</strong>: Swap Redis for DynamoDB to handle extreme state caches without database instance maintenance.</li>
+                    </ul>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -729,7 +1096,7 @@ worker:
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <span>&copy; 2026 DISTRIBUTED VOD PLATFORM. ALL RIGHTS RESERVED.</span>
           <div className="flex gap-4">
-            <span className="text-zinc-500">VERSION 1.2.0-STARK-MINIMAL</span>
+            <span className="text-zinc-500">VERSION 1.3.0-PREMIUM-PREVIEW</span>
             <span className="text-zinc-500">|</span>
             <span className="text-zinc-500">DEPLOYMENT: MULTI_REGION_ACTIVE</span>
           </div>
