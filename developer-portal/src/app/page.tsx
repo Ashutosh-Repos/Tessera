@@ -767,7 +767,7 @@ function App() {
                     borderRadius: `${borderRadius}px`,
                     padding: `${paddingSize}px`
                   }}
-                  className="w-full max-w-md border transition-all duration-300 flex flex-col items-center text-center gap-4 animate-in fade-in duration-200"
+                  className="w-full max-w-md border transition-all duration-300 flex flex-col items-center text-center gap-4 animate-in fade-in"
                 >
                   <span className="font-mono text-xs text-zinc-400 font-bold block">{uploaderTitle}</span>
                   
@@ -1277,12 +1277,12 @@ function App() {
                   return (
                     <div key={node} className="flex items-center justify-between border border-zinc-900 bg-zinc-950 p-3 rounded">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Server className="w-4 h-4 text-white flex-shrink-0" />
+                        <Server className="w-4 h-4 text-white shrink-0" />
                         <div className="flex flex-col min-w-0">
                           <span className="font-mono text-xs text-zinc-300 truncate">{node}</span>
                           <span className="font-mono text-[9px] text-zinc-500">Hash Angle: {angle}°</span>
                         </div>
-                        <div className="flex gap-1 flex-wrap flex-shrink-0">
+                        <div className="flex gap-1 flex-wrap shrink-0">
                           {nodePartitions.map(p => (
                             <span key={p} className="px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400">
                               P{p}
@@ -1417,7 +1417,7 @@ function App() {
                   onClick={() => setDocTab(tab.id as any)}
                   className={`flex items-center gap-3 px-4 py-3 rounded text-left font-mono text-xs transition-colors ${docTab === tab.id ? "bg-zinc-900 text-white font-bold" : "text-zinc-400 hover:text-white hover:bg-zinc-950/60"}`}
                 >
-                  <IconComp className="w-4 h-4 flex-shrink-0" />
+                  <IconComp className="w-4 h-4 shrink-0" />
                   {tab.label}
                 </button>
               );
