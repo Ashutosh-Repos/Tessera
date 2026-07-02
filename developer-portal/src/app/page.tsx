@@ -456,7 +456,7 @@ function App() {
       <header className="sticky top-0 z-50 glass-card border-b border-zinc-900/60 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Layers className="w-5 h-5 text-white" />
-          <span className="font-mono tracking-widest text-sm font-bold">VOD_CLUSTER // DEV_PORTAL</span>
+          <span className="font-mono tracking-widest text-sm font-bold">TESSERA // DEV_PORTAL</span>
         </div>
         <div className="flex items-center gap-6">
           <a href="#customizer" className="text-xs font-mono text-zinc-400 hover:text-white transition-colors">COMPONENTS</a>
@@ -1655,7 +1655,7 @@ worker:
       {/* Footer */}
       <footer className="border-t border-zinc-900/60 py-12 px-6 bg-zinc-950/20 text-center font-mono text-[10px] text-zinc-600">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <span>&copy; 2026 DISTRIBUTED VOD PLATFORM. ALL RIGHTS RESERVED.</span>
+          <span>&copy; 2026 TESSERA. ALL RIGHTS RESERVED.</span>
           <div className="flex gap-4">
             <span className="text-zinc-500">VERSION 1.3.0-PREMIUM-PREVIEW</span>
             <span className="text-zinc-500">|</span>

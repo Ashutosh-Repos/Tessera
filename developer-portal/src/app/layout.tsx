@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Distributed VOD Platform | Developer Hub",
-  description: "High-performance, multi-region distributed video processing system. Ingest, slice, and transcode raw videos dynamically.",
+  title: "Tessera | Developer Hub",
+  description: "Tessera — a high-performance, multi-region distributed video processing engine. Ingest, slice, and transcode raw videos at scale.",
 };
 
 export default function RootLayout({
