@@ -287,14 +287,24 @@ func (te *TaskExecutor) buildFFmpegArgs(input, output string, res models.Resolut
 		models.Res480p:  {"-vf", "scale=854:480", "-b:v", "1400k"},
 	}
 
-	args := []string{"-i", input}
+	var args []string
 
-	// Hardware acceleration
+	// Hardware acceleration input options must precede -i <input>
 	switch te.cfg.Worker.HWAccel {
 	case "nvenc":
-		args = append(args, "-hwaccel", "cuda", "-c:v", "h264_nvenc")
+		args = append(args, "-hwaccel", "cuda")
 	case "vaapi":
-		args = append(args, "-hwaccel", "vaapi", "-c:v", "h264_vaapi")
+		args = append(args, "-hwaccel", "vaapi")
+	}
+
+	args = append(args, "-i", input)
+
+	// Video encoder selection
+	switch te.cfg.Worker.HWAccel {
+	case "nvenc":
+		args = append(args, "-c:v", "h264_nvenc")
+	case "vaapi":
+		args = append(args, "-c:v", "h264_vaapi")
 	case "videotoolbox":
 		args = append(args, "-c:v", "h264_videotoolbox")
 	default:

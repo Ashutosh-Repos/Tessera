@@ -205,6 +205,9 @@ func (pm *PartitionManager) generateHLSMasterPlaylist(resolutions []models.Resol
 		case models.Res720p:
 			bandwidth = 2500000
 			dimensions = "1280x720"
+		case models.Res480p:
+			bandwidth = 1000000
+			dimensions = "854x480"
 		}
 		buf.WriteString(fmt.Sprintf("#EXT-X-STREAM-INF:BANDWIDTH=%d,RESOLUTION=%s\n", bandwidth, dimensions))
 		buf.WriteString(fmt.Sprintf("%s.m3u8\n", res))
@@ -282,9 +285,12 @@ func (pm *PartitionManager) generateDASHManifest(resolutions []models.Resolution
 		case models.Res720p:
 			bandwidth = 2500000
 			width, height = 1280, 720
+		case models.Res480p:
+			bandwidth = 1000000
+			width, height = 854, 480
 		}
 		
-		buf.WriteString(fmt.Sprintf("      <Representation id=\"%s\" mimeType=\"video/mp4\" codecs=\"avc1.640028\" width=\"%d\" height=\"%d\" frameRate=\"30\" bandwidth=\"%d\">\n",
+		buf.WriteString(fmt.Sprintf("      <Representation id=\"%s\" mimeType=\"video/mp2t\" codecs=\"avc1.640028\" width=\"%d\" height=\"%d\" frameRate=\"30\" bandwidth=\"%d\">\n",
 			res, width, height, bandwidth))
 		buf.WriteString(fmt.Sprintf("        <SegmentTemplate timescale=\"1000\" duration=\"5000\" media=\"transcoded/segment_$Number%%03d$_%s.ts\" startNumber=\"0\"/>\n", res))
 		buf.WriteString("      </Representation>\n")

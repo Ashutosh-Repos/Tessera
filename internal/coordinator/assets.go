@@ -65,7 +65,7 @@ func (pm *PartitionManager) generateAssets(ctx context.Context, jobID string, te
 
 	// 4. Extract 3 large thumbnails (640x360) from start, middle, and end chunks
 	var thumbLocalPaths []string
-	indices := []int{0, len(cellPaths) / 2, len(cellPaths) - 1}
+	indices := []int{0, segmentCount / 2, segmentCount - 1}
 	// Deduplicate indices for very short videos
 	uniqueIndices := make([]int, 0, 3)
 	seen := make(map[int]bool)

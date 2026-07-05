@@ -134,6 +134,16 @@ func (w *WorkerDaemon) taskPuller(ctx context.Context, shard int, taskCh chan<- 
 		default:
 		}
 
+		// Apply backpressure: do not pull if task channel has buffered tasks waiting
+		if len(taskCh) >= w.cfg.Worker.ConcurrentTasks {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+			continue
+		}
+
 		msgs, err := w.bus.PullTasks(ctx, shard, 10)
 		if err != nil {
 			select {

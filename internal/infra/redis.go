@@ -106,17 +106,43 @@ func (r *RedisStore) GetCachedManifest(ctx context.Context, jobID string) ([]byt
 
 func (r *RedisStore) PublishProgress(ctx context.Context, jobID string, update models.ProgressUpdate) error {
 	keys := NewRedisKeys(jobID)
+	values := map[string]interface{}{
+		"phase":     string(update.Phase),
+		"completed": update.Completed,
+		"total":     update.Total,
+		"pct":       update.Percent,
+		"hls_url":   update.HLSURL,
+		"dash_url":  update.DASHURL,
+		"error":     update.Error,
+	}
+
+	if update.Sprite != "" {
+		values["sprite_key"] = update.Sprite
+	}
+	if update.SpriteVTT != "" {
+		values["sprite_vtt"] = update.SpriteVTT
+	}
+	if len(update.Thumbnails) > 0 {
+		for i, thumb := range update.Thumbnails {
+			values[fmt.Sprintf("thumbnail_%d", i)] = thumb
+		}
+	}
+	if update.Width > 0 {
+		values["width"] = update.Width
+	}
+	if update.Height > 0 {
+		values["height"] = update.Height
+	}
+	if update.FPS > 0 {
+		values["fps"] = update.FPS
+	}
+	if update.Duration > 0 {
+		values["duration"] = update.Duration
+	}
+
 	args := &redis.XAddArgs{
 		Stream: keys.ProgressStream(),
-		Values: map[string]interface{}{
-			"phase":     string(update.Phase),
-			"completed": update.Completed,
-			"total":     update.Total,
-			"pct":       update.Percent,
-			"hls_url":   update.HLSURL,
-			"dash_url":  update.DASHURL,
-			"error":     update.Error,
-		},
+		Values: values,
 	}
 	return r.client.XAdd(ctx, args).Err()
 }
@@ -188,7 +214,10 @@ func (r *RedisStore) ExecuteCompletionPipeline(ctx context.Context, p Completion
 	taskKey := fmt.Sprintf("task:{%s}:%d:%s", p.JobID, p.SegmentIdx, p.Resolution)
 	segRes := fmt.Sprintf("%d_%s", p.SegmentIdx, p.Resolution)
 
-	pct := int((float64(p.Completed) / float64(p.Total)) * 100)
+	pct := 0
+	if p.Total > 0 {
+		pct = int((float64(p.Completed) / float64(p.Total)) * 100)
+	}
 
 	pipe := r.client.Pipeline()
 

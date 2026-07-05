@@ -101,8 +101,8 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 	}
 	defer stream.Close()
 
-	// Read first 64KB for faststart check
-	buf := make([]byte, 65536)
+	// Read first 1MB for faststart moov atom check
+	buf := make([]byte, 1024*1024)
 	n, err := io.ReadFull(stream, buf)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return 0, fmt.Errorf("failed to read stream prefix: %w", err)
