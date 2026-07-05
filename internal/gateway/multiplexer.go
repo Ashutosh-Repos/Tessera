@@ -154,6 +154,34 @@ func parseProgressUpdate(fields map[string]string) models.ProgressUpdate {
 	update.HLSURL = fields["hls_url"]
 	update.DASHURL = fields["dash_url"]
 	update.Error = fields["error"]
+	update.Sprite = fields["sprite_key"]
+	update.SpriteVTT = fields["sprite_vtt"]
+
+	if val, ok := fields["width"]; ok {
+		i, _ := strconv.Atoi(val)
+		update.Width = i
+	}
+	if val, ok := fields["height"]; ok {
+		i, _ := strconv.Atoi(val)
+		update.Height = i
+	}
+	if val, ok := fields["fps"]; ok {
+		i, _ := strconv.Atoi(val)
+		update.FPS = i
+	}
+	if val, ok := fields["duration"]; ok {
+		d, _ := strconv.ParseFloat(val, 64)
+		update.Duration = d
+	}
+
+	var thumbs []string
+	for i := 0; i < 3; i++ {
+		key := "thumbnail_" + strconv.Itoa(i)
+		if val, ok := fields[key]; ok && val != "" {
+			thumbs = append(thumbs, val)
+		}
+	}
+	update.Thumbnails = thumbs
 	
 	return update
 }

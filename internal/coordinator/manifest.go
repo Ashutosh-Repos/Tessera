@@ -118,16 +118,60 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 		"last_updated": time.Now().Unix(),
 	})
 
+	status, _ = pm.coord.state.GetJobStatus(ctx, jobID)
+
 	schema := "http"
 	if pm.coord.cfg.ObjectStore.UseSSL {
 		schema = "https"
 	}
 	baseURL := fmt.Sprintf("%s://%s/%s", schema, pm.coord.cfg.ObjectStore.Endpoint, pm.coord.cfg.ObjectStore.Bucket)
 
+	var thumbnails []string
+	for i := 0; i < 3; i++ {
+		key := fmt.Sprintf("thumbnail_%d", i)
+		if val, ok := status[key]; ok && val != "" {
+			thumbnails = append(thumbnails, fmt.Sprintf("%s/%s", baseURL, val))
+		}
+	}
+
+	spriteURL := ""
+	if val, ok := status["sprite_key"]; ok && val != "" {
+		spriteURL = fmt.Sprintf("%s/%s", baseURL, val)
+	}
+
+	spriteVTTURL := ""
+	if val, ok := status["sprite_vtt"]; ok && val != "" {
+		spriteVTTURL = fmt.Sprintf("%s/%s", baseURL, val)
+	}
+
+	width := 0
+	if val, ok := status["width"]; ok {
+		width, _ = strconv.Atoi(val)
+	}
+	height := 0
+	if val, ok := status["height"]; ok {
+		height, _ = strconv.Atoi(val)
+	}
+	fps := 30
+	if val, ok := status["fps"]; ok {
+		fps, _ = strconv.Atoi(val)
+	}
+	duration := 0.0
+	if val, ok := status["duration"]; ok {
+		duration, _ = strconv.ParseFloat(val, 64)
+	}
+
 	pm.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{
-		Phase:   models.JobPhaseCompleted,
-		HLSURL:  fmt.Sprintf("%s/%smaster.m3u8", baseURL, prefix),
-		DASHURL: fmt.Sprintf("%s/%smanifest.mpd", baseURL, prefix),
+		Phase:      models.JobPhaseCompleted,
+		HLSURL:     fmt.Sprintf("%s/%smaster.m3u8", baseURL, prefix),
+		DASHURL:    fmt.Sprintf("%s/%smanifest.mpd", baseURL, prefix),
+		Sprite:     spriteURL,
+		SpriteVTT:  spriteVTTURL,
+		Thumbnails: thumbnails,
+		Width:      width,
+		Height:     height,
+		FPS:        fps,
+		Duration:   duration,
 	})
 
 	// 10. Cleanup active jobs tracking in partition

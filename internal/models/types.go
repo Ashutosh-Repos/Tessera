@@ -92,13 +92,20 @@ func (t *SegmentTask) BitIndex() int {
 // ProgressUpdate is the JSON payload written to Redis Streams
 // (XADD progress:{uuid}) and forwarded via WebSocket.
 type ProgressUpdate struct {
-	Phase     JobPhase `json:"phase"`
-	Completed int      `json:"completed,omitempty"`
-	Total     int      `json:"total,omitempty"`
-	Percent   int      `json:"pct,omitempty"`
-	HLSURL    string   `json:"hls_url,omitempty"`
-	DASHURL   string   `json:"dash_url,omitempty"`
-	Error     string   `json:"error,omitempty"`
+	Phase      JobPhase `json:"phase"`
+	Completed  int      `json:"completed,omitempty"`
+	Total      int      `json:"total,omitempty"`
+	Percent    int      `json:"pct,omitempty"`
+	HLSURL     string   `json:"hls_url,omitempty"`
+	DASHURL    string   `json:"dash_url,omitempty"`
+	Error      string   `json:"error,omitempty"`
+	Sprite     string   `json:"sprite,omitempty"`
+	SpriteVTT  string   `json:"sprite_vtt,omitempty"`
+	Thumbnails []string `json:"thumbnails,omitempty"`
+	Width      int      `json:"width,omitempty"`
+	Height     int      `json:"height,omitempty"`
+	FPS        int      `json:"fps,omitempty"`
+	Duration   float64  `json:"duration,omitempty"`
 }
 
 // ──────────────── Upload Session ────────────────

@@ -124,9 +124,28 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 		return 0, err
 	}
 
-	// 4. Update manifest in S3 with segment count
+	// Calculate total duration using fixed segment time (5.0s) for all but the last segment
+	var totalDuration float64
+	if segmentCount > 0 {
+		lastChunkIdx := segmentCount - 1
+		lastChunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%03d.mp4", lastChunkIdx))
+		lastChunkDur, err := getChunkDuration(ctx, lastChunkPath)
+		if err == nil {
+			totalDuration = float64(lastChunkIdx)*5.0 + lastChunkDur
+		} else {
+			totalDuration = float64(segmentCount) * 5.0
+		}
+	}
+
+	// Generate thumbnails and preview sprites
+	if err := pm.generateAssets(ctx, jobID, tempDir, segmentCount, totalDuration); err != nil {
+		log.Printf("Job %s: failed to generate assets: %v", jobID, err)
+	}
+
+	// 4. Update manifest in S3 with segment count and duration
 	manifest.SegmentCount = segmentCount
 	manifest.TotalTasks = segmentCount * len(models.AllResolutions)
+	manifest.DurationSec = totalDuration
 	manifestData, err := json.Marshal(manifest)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal updated manifest: %w", err)
