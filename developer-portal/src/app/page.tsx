@@ -234,7 +234,6 @@ export default function Home() {
       });
 
       setHlsInstance(hls);
-      setHlsInstance(hls);
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsSourceUrl;
     }
