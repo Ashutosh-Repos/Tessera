@@ -16,6 +16,11 @@ C4Context
 
     Person(user, "End User / Mobile App", "Uploads raw videos via browser/app and streams final HLS/DASH media.")
     Person(sre, "SRE / System Operator", "Monitors cluster topology, worker loads, regional health, and DLQ depth.")
+
+    System_Boundary(ui_boundary, "Frontend User Interface Applications") {
+        System(dev_portal, "Developer Portal (Next.js)", "Web Upload Studio, hls.js Adaptive Video Player, Hash Ring Visualizer, SDK Docs.")
+        System(admin_console, "Admin Console (Vite React)", "SRE Operational Dashboard, Fleet Telemetry, Pipeline Jobs Inspector, Etcd Ring Topology.")
+    }
     
     System(vod_engine, "Distributed VOD Engine", "Orchestrates ingestion, stream slicing, distributed transcoding, progress streaming, and manifest compilation.")
     
@@ -23,27 +28,35 @@ C4Context
     System_Ext(s3, "Object Storage (S3 / MinIO)", "Stores raw source uploads, temporary raw segment slices, transcoded chunks, and final manifests.")
     System_Ext(otel, "OpenTelemetry Collector", "Aggregates gRPC distributed trace spans (Jaeger, Zipkin, Datadog).")
 
-    Rel(user, vod_engine, "1. Requests upload URLs & listens to SSE progress", "HTTPS / SSE")
-    Rel(user, s3, "2. Uploads 50GB raw video directly via presigned URLs", "HTTPS (Presigned PUT)")
-    Rel(vod_engine, s3, "3. Reads 64KB headers, streams slices, writes playlists", "S3 API (AWS SDK v2)")
-    Rel(vod_engine, otel, "4. Exports OTLP trace spans (TraceID = JobUUID)", "gRPC (:4317)")
-    Rel(sre, vod_engine, "5. Queries regional health & worker CPU/GPU telemetry", "HTTPS / JSON")
-    Rel(cdn, s3, "6. Fetches media playlists & segments for edge caching", "HTTPS")
-    Rel(user, cdn, "7. Streams final HLS/DASH video with ABR quality switching", "HTTPS")
+    Rel(user, dev_portal, "1. Accesses Upload Studio & Video Player", "HTTPS")
+    Rel(sre, admin_console, "2. Accesses SRE Control Panel & Fleet Visualizers", "HTTPS")
+
+    Rel(dev_portal, vod_engine, "3. Requests upload URLs & listens to SSE progress", "HTTPS / SSE (:8080)")
+    Rel(dev_portal, s3, "4. Uploads 50GB raw video directly via presigned URLs", "HTTPS (Presigned PUT)")
+    Rel(admin_console, vod_engine, "5. Queries cluster telemetry, jobs, & Etcd topology", "HTTPS / JSON (:8080)")
+
+    Rel(vod_engine, s3, "6. Reads 64KB headers, streams slices, writes playlists", "S3 API (AWS SDK v2)")
+    Rel(vod_engine, otel, "7. Exports OTLP trace spans (TraceID = JobUUID)", "gRPC (:4317)")
+    Rel(cdn, s3, "8. Fetches media playlists & segments for edge caching", "HTTPS")
+    Rel(dev_portal, cdn, "9. Streams final HLS/DASH video with ABR quality switching", "HTTPS")
 ```
 
 ---
 
 ## 3.2 System Boundary & Component Responsibilities
 
-The system boundary clearly segregates internal micro-tier components from external infrastructure dependencies:
+The system boundary clearly segregates internal micro-tier components, frontend applications, and external infrastructure dependencies:
 
-### Inside the System Boundary
+### Frontend User Interface Tier
+1. **Developer Portal ([`developer-portal/`](../developer-portal/))**: Next.js App Router (React 19, Tailwind CSS v4, `hls.js`). Provides the end-user Video Upload Studio, real-time SSE progress monitor, adaptive HLS player with quality switcher, and interactive hash ring visualizer.
+2. **Admin Console ([`admin-console/`](../admin-console/))**: Vite + React 19 + TypeScript + Tailwind CSS. Serves as the SRE control center for monitoring worker CPU/GPU utilization, inspecting pipeline jobs, retrying failed tasks, and viewing etcd partition ring leases.
+
+### Inside the System Boundary (Core Engine)
 1. **API Gateway Tier ([`internal/gateway/`](../internal/gateway/))**: Stateless edge ingress handling authentication, presigned URL generation, rate limiting, and SSE progress multiplexing.
 2. **Coordinator Tier ([`internal/coordinator/`](../internal/coordinator/))**: Stateful brain managing Etcd hash ring topology, faststart stream slicing, task dispatching, DLQ monitoring, and manifest compilation.
 3. **Worker Tier ([`internal/worker/`](../internal/worker/))**: Stateless compute engines pulling tasks, enforcing resource watchdogs, executing FFmpeg transcoding, and performing atomic S3 commits.
 
-### Outside the System Boundary
+### Outside the System Boundary (Backing Infrastructure)
 1. **Object Storage (S3 / MinIO)**: Stores binary media assets. Interacted with exclusively via AWS SDK v2 presigned URLs and S3 API calls.
 2. **State Store (Redis Cluster)**: Manages ephemeral status hashes, progress bitmaps, and stream logs.
 3. **Consensus Engine (Etcd Cluster)**: Manages coordinator registration, partition leases, and slicing mutexes.

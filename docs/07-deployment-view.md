@@ -857,7 +857,126 @@ gateways:
 
 ---
 
-## 7.11 Troubleshooting Runbook
+## 7.11 Deploying the Frontend Applications
+
+The VOD Engine ecosystem includes two frontend web applications: the **Developer Portal** (`developer-portal/`) and the **Admin Console** (`admin-console/`).
+
+### 7.11.1 Admin Console Deployment ([`admin-console/`](../admin-console/))
+
+The Admin Console is a Single Page Application (SPA) built with **Vite, React 19, TypeScript, and Tailwind CSS**.
+
+#### 1. Local Development Mode (Vite Dev Server)
+```bash
+cd admin-console
+
+# Install dependencies
+npm install
+
+# Start development server on default Vite port (or configured port :3001)
+npm run dev
+```
+Open `http://localhost:5173` (or `http://localhost:3001`). Configure the Gateway API endpoint in the console header to point to `http://localhost:8080`.
+
+#### 2. Production Build & Static Hosting
+```bash
+cd admin-console
+
+# Typecheck and build optimized static assets into dist/
+npm run build
+```
+The resulting `dist/` directory contains static HTML, JavaScript chunks, and CSS files.
+
+**Deploying to NGINX / Docker**:
+```dockerfile
+# admin-console/Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+# NGINX SPA fallback config (redirect all routes to index.html)
+RUN echo 'server { listen 80; location / { root /usr/share/nginx/html; index index.html; try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**Deploying to Cloudflare Pages / Vercel / Netlify**:
+- **Framework Preset**: Vite
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Environment Variables**: `VITE_API_GATEWAY_URL=https://vod-api.yourdomain.com`
+
+---
+
+### 7.11.2 Developer Portal Deployment ([`developer-portal/`](../developer-portal/))
+
+The Developer Portal is built with **Next.js 16 (App Router), React 19, Tailwind CSS v4, and `hls.js`**.
+
+#### 1. Local Development Mode
+```bash
+cd developer-portal
+
+# Install dependencies
+npm install
+
+# Start Next.js development server
+npm run dev
+```
+Open `http://localhost:3000` in your browser.
+
+#### 2. Production Node.js Server Deployment
+```bash
+cd developer-portal
+
+# Build the Next.js production bundle
+npm run build
+
+# Start the Node.js production server on port 3000
+npm run start
+```
+
+#### 3. Standalone Docker Container Deployment
+Add `output: 'standalone'` to `developer-portal/next.config.ts`:
+
+```dockerfile
+# developer-portal/Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+#### 4. Deploying to Vercel PaaS (Recommended)
+Because Vercel is the creator of Next.js, deploying `developer-portal/` to Vercel takes seconds:
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy from the developer-portal directory
+cd developer-portal
+vercel --prod
+```
+- **Environment Variable**: `NEXT_PUBLIC_GATEWAY_URL=https://vod-api.yourdomain.com`
+
+---
+
+## 7.12 Troubleshooting Runbook
 
 | Symptom | Root Cause | Fix |
 | :--- | :--- | :--- |
@@ -871,3 +990,7 @@ gateways:
 | NATS `tls: bad certificate` | Worker's TLS client certificate not signed by the same CA as the NATS server | Re-issue client certs via `cert-manager` using the same `ClusterIssuer`. |
 | CRR Simulator not replicating | `simulate_crr.go` cannot reach source or destination MinIO | Verify MinIO endpoints: US-East at `127.0.0.1:9000`, EU-West at `127.0.0.1:9010`. Check `logs/simulate-crr.log` for errors. |
 | `docker compose up` hangs on `minio-init` | MinIO hasn't finished starting when `minio-init` tries to connect | The `depends_on` ensures ordering, but MinIO may need 5+ seconds. The init script has a `sleep 5` for this. Increase to `sleep 10` if on slow hardware. |
+| Admin Console / Dev Portal `CORS Error` | Gateway `:8080` or MinIO `:9000` missing Access-Control-Allow-Origin headers | Gateway handles CORS automatically. For MinIO, run `mc cors set myminio/transcoder-docker cors.json` with `"AllowedOrigins":["*"]`. |
+| Developer Portal HLS Player fails to play | MinIO bucket access policy is set to private instead of public | Run `mc anonymous set public myminio/transcoder-docker` so `hls.js` can fetch `.m3u8` and `.ts` files without S3 authentication headers. |
+| Next.js build error `hls.js window is not defined` | `hls.js` instantiated during Server-Side Rendering (SSR) | Wrap player component in `dynamic(() => import(...), { ssr: false })` or use client-side `useEffect` initialization. |
+

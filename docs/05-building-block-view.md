@@ -10,7 +10,10 @@ The primary compute tier is split into three decoupled containers (Gateway, Coor
 
 ```mermaid
 C4Container
-    title Container diagram for the Distributed VOD Engine
+    title Container diagram for Distributed VOD Engine & UI Ecosystem
+
+    Container(devportal, "Developer Portal", "Next.js 16 / React 19", "Upload Studio, HLS Adaptive Player, Hash Ring canvas, API Docs.")
+    Container(adminconsole, "Admin Console", "Vite / React 19 / TS", "SRE Telemetry dashboard, Job inspector, Partition Ring lease visualizer.")
 
     Container(gateway, "API Gateway", "Go", "Handles HTTP ingress, presigned URL signing, rate limiting, and SSE progress multiplexing.")
     Container(coord, "Coordinator", "Go", "Manages hash ring, slices videos into segments, tracks job state, compiles manifests.")
@@ -19,19 +22,43 @@ C4Container
     ContainerDb(redis, "Redis Cluster", "State", "Atomic job status, progress bitmaps, segment durations, rate limits.")
     ContainerDb(etcd, "Etcd Cluster", "Consensus", "Leases, locks, and the Consistent Hash Ring.")
     ContainerDb(nats, "NATS JetStream / SQS", "Event Bus", "Guaranteed at-least-once task delivery and DLQ.")
+    ContainerDb(s3, "Object Storage (MinIO / S3)", "Media", "Stores raw uploads, sliced chunks, output HLS/DASH streams.")
+
+    Rel(devportal, gateway, "Requests upload URLs, SSE progress", "HTTPS / SSE (:8080)")
+    Rel(devportal, s3, "Direct presigned PUT uploads", "HTTPS")
+    Rel(adminconsole, gateway, "Fetches cluster telemetry & jobs", "HTTPS / JSON (:8080)")
 
     Rel(gateway, redis, "Checks rate limits, sets status", "TCP/Redis")
     Rel(gateway, nats, "Publishes raw-upload bridge events", "TCP/mTLS")
     Rel(coord, etcd, "Maintains ring leases & locks", "gRPC")
     Rel(coord, nats, "Publishes segment tasks", "TCP/mTLS")
     Rel(coord, redis, "Updates job state & bitcount", "TCP/Redis")
+    Rel(coord, s3, "Faststart GOP header slice read", "S3 API")
     Rel(worker, nats, "Pulls tasks, extends acks", "TCP/mTLS")
     Rel(worker, redis, "Atomic completion pipeline", "TCP/Redis")
+    Rel(worker, s3, "Downloads chunk, uploads .ts", "S3 API")
 ```
 
 ---
 
-## 5.2 Level 3: Data Schema Specifications (`internal/models/types.go`)
+## 5.2 Frontend UI Applications
+
+### 5.2.1 Developer Portal ([`developer-portal/`](../developer-portal/))
+A modern Next.js 16 (App Router) frontend designed for media engineers and developers interacting with the transcoding engine.
+- **Video Upload Studio**: Client-side drag-and-drop file ingestion. Calls Gateway `POST /api/jobs/upload-session` to retrieve presigned S3 URLs, executes multi-part PUT uploads directly to MinIO/S3, and subscribes to real-time Server-Sent Events (SSE) for transcoding progress tracking.
+- **Adaptive HLS Video Player**: Custom media player built on `hls.js` (v1.6.16). Renders output HLS playlists (`master.m3u8`), providing manual and automatic bitrate quality switching (1080p, 720p, 480p), buffer health monitoring, and stream telemetry overlays.
+- **Interactive Hash Ring Visualizer**: Canvas-based visualizer illustrating FNV-1a partition hashing across 1024 virtual slots.
+- **Developer Integration Guide**: Interactive code generator for Go, Node.js, Python, and cURL SDK integrations.
+
+### 5.2.2 Admin Console ([`admin-console/`](../admin-console/))
+A high-throughput SRE operations dashboard built with Vite, React 19, TypeScript, and Tailwind CSS.
+- **Real-Time Telemetry Dashboard ([`Dashboard.tsx`](../admin-console/src/pages/Dashboard.tsx))**: Displays active worker node counts, CPU/GPU utilization, GOP slicing latency, NATS JetStream queue depth, and memory consumption.
+- **Pipeline Jobs Inspector ([`Jobs.tsx`](../admin-console/src/pages/Jobs.tsx))**: Searchable, status-filtered table of all transcoding jobs (`PENDING`, `SLICING`, `TRANSCODING`, `COMPLETED`, `FAILED`). Allows SREs to trigger manual task retries, inspect segment completion bitmaps, and view error stack traces.
+- **Consistent Hashing Topology Visualizer ([`Topology.tsx`](../admin-console/src/pages/Topology.tsx))**: Real-time map of the 1024 virtual partitions, active coordinator Etcd lease heartbeats, and failover lock statuses.
+
+---
+
+## 5.3 Level 3: Data Schema Specifications (`internal/models/types.go`)
 
 ### 1. `JobManifest` ([`types.go`](../internal/models/types.go#L34))
 The manifest contract written to S3 as `job_manifest.json` at the start of a job:
