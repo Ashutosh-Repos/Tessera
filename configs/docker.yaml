@@ -1,0 +1,62 @@
+role: "gateway"
+region: "docker-local"
+node_id: ""
+
+redis:
+  addrs:
+    - "redis:6379"
+  password: ""
+  max_retries: 3
+  pool_size: 10
+
+nats:
+  urls:
+    - "nats://nats:4222"
+
+etcd:
+  endpoints:
+    - "etcd:2379"
+
+object_store:
+  endpoint: "minio:9000"
+  bucket: "transcoder-docker"
+  region: "docker-local"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  use_ssl: false
+
+gateway:
+  listen_addr: "0.0.0.0:8080"
+  jwt_secret: "docker-secret-key"
+  admin_api_key: "admin-secret-token"
+  max_upload_size_gb: 5
+  rate_limit_per_ip: 1000
+  rate_limit_per_user: 1000
+  multiplex_batch_ms: 100
+
+coordinator:
+  partition_count: 4
+  slicing_semaphore: 5
+  nats_shard_count: 2
+  etcd_lease_ttl_sec: 5
+  slicing_lock_ttl_sec: 5
+  self_fence_thresh_sec: 3
+  takeover_grace_sec: 2
+  gc_interval_min: 1
+  gc_stale_thresh_hours: 1
+
+worker:
+  scratch_dir: "/tmp/scratch-docker"
+  min_disk_free_gb: 1
+  watchdog_interval_sec: 2
+  max_task_duration_min: 2
+  max_temp_file_size_gb: 1
+  concurrent_tasks: 4
+  graceful_drain_sec: 5
+  circuit_breaker_window: 5
+  circuit_breaker_thresh: 3
+  hw_accel: "none"
+
+metrics:
+  listen_addr: "0.0.0.0:9091"
+  path: "/metrics"

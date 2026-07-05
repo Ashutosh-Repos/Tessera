@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.mp4
+transcoder-bin
+logs/
+docs/
+scratch/
+next version/
+*.md

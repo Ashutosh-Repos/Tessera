@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # INFRASTRUCTURE TIER (Pluggable Drivers)
+  # ==========================================
+  # To run this tier: docker compose -f docker-compose.prod.yml --profile infra-selfhosted up -d
+  redis:
+    image: redis:7.0-alpine
+    command: redis-server --appendonly yes
+    profiles:
+      - infra-selfhosted
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  nats:
+    image: nats:2.9-alpine
+    command: -js -m 8222
+    profiles:
+      - infra-selfhosted
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.9
+    command: >
+      /usr/local/bin/etcd
+      --listen-client-urls=http://0.0.0.0:2379
+      --advertise-client-urls=http://etcd:2379
+    profiles:
+      - infra-selfhosted
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/etcd-data
+
+  minio:
+    image: minio/minio:RELEASE.2023-08-09T23-30-22Z
+    command: server /data --console-address ":9001"
+    profiles:
+      - infra-selfhosted
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    profiles:
+      - infra-selfhosted
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc rm -r --force myminio/transcoder-docker || true;
+      /usr/bin/mc mb myminio/transcoder-docker;
+      /usr/bin/mc anonymous set public myminio/transcoder-docker;
+      exit 0;
+      "
+
+  # ==========================================
+  # ENGINE TIER (The Compute Nodes)
+  # ==========================================
+  # To run this tier: docker compose -f docker-compose.prod.yml --profile backend up -d
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: server gateway --config /app/configs/docker.yaml
+    profiles:
+      - backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - nats
+      - etcd
+      - minio
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: server coordinator --config /app/configs/docker.yaml
+    profiles:
+      - backend
+    depends_on:
+      - redis
+      - nats
+      - etcd
+      - minio
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: server worker --config /app/configs/docker.yaml
+    profiles:
+      - backend
+    deploy:
+      mode: replicated
+      replicas: 2
+    depends_on:
+      - redis
+      - nats
+      - minio
+
+volumes:
+  redis_data:
+  nats_data:
+  etcd_data:
+  minio_data:
