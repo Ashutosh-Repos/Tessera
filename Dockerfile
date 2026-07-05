@@ -1,5 +1,8 @@
 # Stage 1: Build the Go binary
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
+
+# Enable toolchain auto resolution for Go 1.25+
+ENV GOTOOLCHAIN=auto
 
 # Set working directory inside the container
 WORKDIR /app
@@ -28,6 +31,9 @@ WORKDIR /app
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /video-engine /app/video-engine
+
+# Copy configs directory
+COPY configs/ /app/configs/
 
 # Make the binary executable (just in case)
 RUN chmod +x /app/video-engine
