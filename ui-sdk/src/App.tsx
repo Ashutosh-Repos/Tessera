@@ -55,10 +55,14 @@ function App() {
               </div>
             </div>
             
-            <VideoPlayer hlsUrl={hlsUrl} />
+            <VideoPlayer 
+              hlsUrl={hlsUrl} 
+              spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"
+              spriteConfig={{ width: 160, height: 90, cols: 5, intervalSec: 5 }}
+            />
             
             <p className="text-center text-[10px] text-neutral-500 font-mono mt-2 bg-neutral-950 py-3 rounded border border-neutral-900/60 uppercase tracking-wider">
-              Press <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">D</kbd> for diagnostics · <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">F</kbd> for fullscreen · <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">Space</kbd> to play/pause
+              Press <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">D</kbd> for telemetry · <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400 font-bold text-white">Hover Seekbar</kbd> for sprite preview · <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">F</kbd> for fullscreen · <kbd className="mx-1 px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-850 text-neutral-400">P</kbd> for PiP
             </p>
           </section>
         </main>
