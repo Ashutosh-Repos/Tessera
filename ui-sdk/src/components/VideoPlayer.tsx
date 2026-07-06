@@ -13,7 +13,9 @@ import {
   Gauge,
   PictureInPicture2,
   RotateCcw,
-  RotateCw
+  RotateCw,
+  HelpCircle,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { parseVTTCues, type SpriteCue } from '../lib/vtt';
@@ -96,6 +98,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, []);
   const [showControls, setShowControls] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
@@ -330,6 +333,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         case 'd':
           e.preventDefault();
           setShowDiagnostics(prev => !prev);
+          break;
+        case '?':
+        case 'h':
+          e.preventDefault();
+          setShowHelpModal(prev => !prev);
           break;
         default:
           // 0-9 seek percent
@@ -837,6 +845,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
 
+            {/* Toggle Keyboard Shortcuts Modal */}
+            <button
+              className={cn(
+                "p-1.5 rounded transition-colors hover:bg-white/10",
+                showHelpModal ? "text-white bg-neutral-900" : "text-neutral-400 hover:text-white"
+              )}
+              onClick={() => setShowHelpModal(prev => !prev)}
+              aria-label="Keyboard Shortcuts"
+              title="Keyboard Shortcuts (?)"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+
             {/* Toggle Fullscreen */}
             <button 
               className={cn("p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10", classNames.fullscreenButton)} 
@@ -848,6 +869,55 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Help Modal Overlay */}
+      {showHelpModal && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-150">
+          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 text-xs font-mono shadow-2xl relative">
+            <div className="flex justify-between items-center border-b border-neutral-900 pb-3">
+              <span className="font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-white" /> KEYBOARD SHORTCUTS
+              </span>
+              <button 
+                onClick={() => setShowHelpModal(false)}
+                className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-y-2 text-[10px] text-neutral-300">
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">Space / K</kbd></div>
+              <div>Play / Pause</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">F</kbd></div>
+              <div>Toggle Fullscreen</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">M</kbd></div>
+              <div>Mute / Unmute Audio</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">P</kbd></div>
+              <div>Picture-in-Picture</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">D</kbd></div>
+              <div>Stream Telemetry</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">← / →</kbd></div>
+              <div>Seek -5s / +5s</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">↑ / ↓</kbd></div>
+              <div>Volume +10% / -10%</div>
+
+              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">0 - 9</kbd></div>
+              <div>Seek 0% - 90%</div>
+            </div>
+
+            <div className="text-[9px] text-neutral-500 text-center pt-2 border-t border-neutral-900 uppercase">
+              Press <kbd className="px-1 bg-neutral-900 border border-neutral-850 rounded">?</kbd> or <kbd className="px-1 bg-neutral-900 border border-neutral-850 rounded">Esc</kbd> to close
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

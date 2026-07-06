@@ -67,6 +67,13 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         if (!isSubscribed || !text) return;
         const parsed = parseVTTCues(text, targetVtt);
         setVttCues(parsed);
+
+        // Preload sprite images into browser memory cache for instantaneous rendering on hover
+        const uniqueUrls = Array.from(new Set(parsed.map(c => c.url)));
+        uniqueUrls.forEach(url => {
+          const img = new Image();
+          img.src = url;
+        });
       })
       .catch(err => console.warn('Failed to parse tile VTT:', err));
 
