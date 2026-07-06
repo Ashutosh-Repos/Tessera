@@ -34,6 +34,7 @@ function App() {
       uploadedAt: '1 week ago',
       duration: '08:45',
       posterUrl: createDemoPosterDataUrl('Consistent Hash Partitioning', 270),
+      spriteUrl: demoSpriteUrl,
       previewVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
       badge: 'HD',
       isVerified: true,
