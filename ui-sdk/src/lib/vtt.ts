@@ -56,7 +56,8 @@ export function parseVTTCues(vttText: string, baseUrl?: string): SpriteCue[] {
 }
 
 function parseVTTTimestamp(ts: string): number {
-  const parts = ts.split(':');
+  const cleanTs = ts.trim().split(/\s+/)[0];
+  const parts = cleanTs.split(':');
   let seconds = 0;
   if (parts.length === 3) {
     seconds = parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);

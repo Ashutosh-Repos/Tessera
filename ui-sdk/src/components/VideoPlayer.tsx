@@ -87,6 +87,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isBuffering, setIsBuffering] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPip, setIsPip] = useState(false);
+  const [isPipSupported, setIsPipSupported] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && document.pictureInPictureEnabled) {
+      setIsPipSupported(true);
+    }
+  }, []);
   const [showControls, setShowControls] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
@@ -820,7 +827,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </button>
 
             {/* Picture in Picture */}
-            {document.pictureInPictureEnabled && (
+            {isPipSupported && (
               <button 
                 className={cn("p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10", isPip && "text-white bg-neutral-900", classNames.pipButton)} 
                 onClick={togglePip} 

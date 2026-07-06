@@ -73,6 +73,14 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     return () => { isSubscribed = false; };
   }, [spriteUrl, spriteVttUrl]);
 
+  // Unmount Timer Cleanup
+  useEffect(() => {
+    return () => {
+      clearTimeout(hoverTimerRef.current);
+      clearInterval(flipbookIntervalRef.current);
+    };
+  }, []);
+
   // 2. Handle Mouse Enter with Delay (YouTube-style 300ms hover delay)
   const handleMouseEnter = () => {
     clearTimeout(hoverTimerRef.current);
