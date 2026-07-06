@@ -142,6 +142,36 @@ export default function Home() {
   const [tileBadge, setTileBadge] = useState<string>("4K");
   const [tilePreviewMode, setTilePreviewMode] = useState<"sprite" | "video">("sprite");
 
+  // VideoTile Interactive Hover Preview states
+  const [isTileHovered, setIsTileHovered] = useState<boolean>(false);
+  const [tileCueIndex, setTileCueIndex] = useState<number>(0);
+  const tileHoverTimerRef = useRef<any>(null);
+  const tileFlipbookIntervalRef = useRef<any>(null);
+  const tileVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Handle tile hover sprite flipbook sequence
+  useEffect(() => {
+    if (!isTileHovered) {
+      clearInterval(tileFlipbookIntervalRef.current);
+      setTileCueIndex(0);
+      if (tileVideoRef.current) {
+        tileVideoRef.current.pause();
+        tileVideoRef.current.currentTime = 0;
+      }
+      return;
+    }
+
+    if (tilePreviewMode === "sprite") {
+      tileFlipbookIntervalRef.current = setInterval(() => {
+        setTileCueIndex(prev => (prev + 1) % 5);
+      }, 350);
+    } else if (tilePreviewMode === "video" && tileVideoRef.current) {
+      tileVideoRef.current.play().catch(() => {});
+    }
+
+    return () => clearInterval(tileFlipbookIntervalRef.current);
+  }, [isTileHovered, tilePreviewMode]);
+
   // Mock interactive simulation actions
   const [mockFileName, setMockFileName] = useState<string>("");
   const [mockUploadProgress, setMockUploadProgress] = useState<number>(-1);
@@ -1197,21 +1227,71 @@ function App() {
                 </div>
               ) : (
                 <div className="w-full max-w-sm flex flex-col gap-4 animate-in fade-in duration-200">
-                  <div className="group relative flex flex-col gap-3 rounded-xl overflow-hidden cursor-pointer select-none transition-all duration-300 hover:scale-[1.02] bg-zinc-950 border border-zinc-900 p-3 shadow-2xl">
+                  <div 
+                    onMouseEnter={() => {
+                      clearTimeout(tileHoverTimerRef.current);
+                      tileHoverTimerRef.current = setTimeout(() => setIsTileHovered(true), 300);
+                    }}
+                    onMouseLeave={() => {
+                      clearTimeout(tileHoverTimerRef.current);
+                      setIsTileHovered(false);
+                    }}
+                    className="group relative flex flex-col gap-3 rounded-xl overflow-hidden cursor-pointer select-none transition-all duration-300 hover:scale-[1.02] bg-zinc-950 border border-zinc-900 p-3 shadow-2xl"
+                  >
                     <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-black border border-zinc-800/80 shadow-md">
+                      {/* Base Poster Image */}
                       <img 
                         src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80" 
                         alt={tileTitle}
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover transition-opacity duration-300 ${isTileHovered ? "opacity-0" : "opacity-100"}`}
                       />
+
+                      {/* Sprite Flipbook Animation Overlay */}
+                      {isTileHovered && tilePreviewMode === "sprite" && (
+                        <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
+                          <div 
+                            className="w-[160px] h-[90px] bg-no-repeat transition-all duration-75 scale-125"
+                            style={{
+                              backgroundImage: `url(https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg)`,
+                              backgroundPosition: `-${(tileCueIndex % 5) * 160}px 0px`,
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Muted Video Preview Loop */}
+                      {tilePreviewMode === "video" && (
+                        <video
+                          ref={tileVideoRef}
+                          src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                          muted
+                          loop
+                          playsInline
+                          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isTileHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                        />
+                      )}
+
+                      {/* Top Badges */}
                       {tileBadge && (
                         <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-black/70 text-white backdrop-blur border border-white/10">
                           {tileBadge}
                         </div>
                       )}
+
+                      {/* Duration Badge */}
                       <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-black/80 text-white backdrop-blur border border-white/10 flex items-center gap-1">
                         14:20
                       </div>
+
+                      {/* Hover Progress Bar */}
+                      {isTileHovered && tilePreviewMode === "sprite" && (
+                        <div className="absolute bottom-0 inset-x-0 h-1 bg-zinc-800 z-10">
+                          <div 
+                            className="h-full bg-white transition-all duration-300"
+                            style={{ width: `${((tileCueIndex + 1) / 5) * 100}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-3 px-0.5">
@@ -1220,7 +1300,7 @@ function App() {
                       </div>
 
                       <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <h3 className="text-xs font-semibold text-zinc-100 line-clamp-2 leading-snug">
+                        <h3 className="text-xs font-semibold text-zinc-100 line-clamp-2 leading-snug group-hover:text-white transition-colors">
                           {tileTitle}
                         </h3>
 
@@ -1237,7 +1317,7 @@ function App() {
                   </div>
 
                   <span className="text-[10px] font-mono text-zinc-500 text-center uppercase tracking-wider">
-                    HOVER PREVIEW MODE: {tilePreviewMode.toUpperCase()}
+                    HOVER PREVIEW MODE: {tilePreviewMode.toUpperCase()} {isTileHovered ? "✦ ACTIVE" : "✦ HOVER CARD TO PREVIEW"}
                   </span>
                 </div>
               )}
