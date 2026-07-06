@@ -627,7 +627,7 @@ function App() {
                     />
                   </div>
                 </div>
-              ) : (
+              ) : selectedComp === "player" ? (
                 <div className="flex flex-col gap-4">
                   <div>
                     <label className="block font-mono text-[10px] text-zinc-500 mb-1">CONTROLS_POSITION</label>
@@ -764,6 +764,56 @@ function App() {
                       </button>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">VIDEO_TITLE</label>
+                    <input 
+                      type="text"
+                      value={tileTitle}
+                      onChange={(e) => setTileTitle(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">CHANNEL_NAME</label>
+                    <input 
+                      type="text"
+                      value={tileChannel}
+                      onChange={(e) => setTileChannel(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">BADGE_TEXT</label>
+                    <input 
+                      type="text"
+                      value={tileBadge}
+                      onChange={(e) => setTileBadge(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">HOVER_PREVIEW_MODE</label>
+                    <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                      <button
+                        onClick={() => setTilePreviewMode("sprite")}
+                        className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${tilePreviewMode === "sprite" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                      >
+                        SPRITE VTT
+                      </button>
+                      <button
+                        onClick={() => setTilePreviewMode("video")}
+                        className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${tilePreviewMode === "video" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                      >
+                        MUTED VIDEO
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1154,7 +1204,7 @@ function App() {
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-zinc-400" />
                   <span className="font-mono text-xs text-zinc-400">
-                    {selectedComp === "uploader" ? "VideoUploader.tsx" : "VideoPlayer.tsx"}
+                    {selectedComp === "uploader" ? "VideoUploader.tsx" : selectedComp === "player" ? "VideoPlayer.tsx" : "VideoTile.tsx"}
                   </span>
                 </div>
                 <button 
