@@ -20,6 +20,7 @@ export interface VideoTileProps {
   posterUrl: string;
   spriteUrl?: string;           // Direct sprite sheet or VTT URL
   spriteVttUrl?: string;        // WebVTT file for thumbnail cues
+  previewFrames?: string[];     // Optional array of keyframe image URLs for flipbook
   previewVideoUrl?: string;     // Optional MP4 preview or HLS URL
   badge?: string;               // e.g. "4K", "HD", "NEW"
   isVerified?: boolean;
@@ -27,6 +28,14 @@ export interface VideoTileProps {
   onMenuClick?: (e: React.MouseEvent) => void;
   className?: string;
 }
+
+const DEFAULT_PREVIEW_FRAMES = [
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80'
+];
 
 export const VideoTile: React.FC<VideoTileProps> = ({
   title,
@@ -38,6 +47,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   posterUrl,
   spriteUrl,
   spriteVttUrl,
+  previewFrames,
   previewVideoUrl,
   badge = '4K',
   isVerified = true,
@@ -109,6 +119,8 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   };
 
   // 3. Sprite Flipbook Cycling Animation
+  const activeFrames = previewFrames || DEFAULT_PREVIEW_FRAMES;
+
   useEffect(() => {
     if (!isHovered) {
       clearInterval(flipbookIntervalRef.current);
@@ -119,16 +131,28 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       // Sequence through WebVTT cues at 2.5 frames per second
       flipbookIntervalRef.current = window.setInterval(() => {
         setActiveCueIndex(prev => (prev + 1) % vttCues.length);
-      }, 400);
-    } else if (previewVideoUrl && videoRef.current) {
-      // Play video preview muted
-      videoRef.current.play().then(() => setIsVideoPlaying(true)).catch(() => {});
+      }, 350);
+    } else {
+      // Fallback keyframe image sequence flipbook
+      flipbookIntervalRef.current = window.setInterval(() => {
+        setActiveCueIndex(prev => (prev + 1) % activeFrames.length);
+      }, 350);
+
+      if (previewVideoUrl && videoRef.current) {
+        videoRef.current.play().then(() => setIsVideoPlaying(true)).catch(() => {});
+      }
     }
 
     return () => clearInterval(flipbookIntervalRef.current);
-  }, [isHovered, vttCues, previewVideoUrl]);
+  }, [isHovered, vttCues, activeFrames, previewVideoUrl]);
 
-  // Active Sprite Style
+  // Active Sprite Style or Fallback Image Frame
+  const activeFrameUrl = useMemo(() => {
+    if (!isHovered) return null;
+    if (vttCues.length > 0) return null;
+    return activeFrames[activeCueIndex % activeFrames.length];
+  }, [isHovered, vttCues, activeFrames, activeCueIndex]);
+
   const currentSpriteStyle = useMemo(() => {
     if (!isHovered || vttCues.length === 0) return null;
     const cue = vttCues[activeCueIndex];
@@ -165,9 +189,18 @@ export const VideoTile: React.FC<VideoTileProps> = ({
           alt={title}
           className={cn(
             "w-full h-full object-cover transition-opacity duration-300",
-            (isHovered && (currentSpriteStyle || isVideoPlaying)) ? "opacity-0" : "opacity-100"
+            (isHovered && (currentSpriteStyle || activeFrameUrl || isVideoPlaying)) ? "opacity-0" : "opacity-100"
           )}
         />
+
+        {/* Fallback Keyframe Sequence Preview Image */}
+        {isHovered && activeFrameUrl && !currentSpriteStyle && (
+          <img 
+            src={activeFrameUrl}
+            alt="Preview Frame"
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-150 animate-in fade-in"
+          />
+        )}
 
         {/* Sprite Flipbook Canvas Preview */}
         {isHovered && currentSpriteStyle && (

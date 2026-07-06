@@ -1248,15 +1248,17 @@ function App() {
 
                       {/* Sprite Flipbook Animation Overlay */}
                       {isTileHovered && tilePreviewMode === "sprite" && (
-                        <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
-                          <div 
-                            className="w-[160px] h-[90px] bg-no-repeat transition-all duration-75 scale-125"
-                            style={{
-                              backgroundImage: `url(https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg)`,
-                              backgroundPosition: `-${(tileCueIndex % 5) * 160}px 0px`,
-                            }}
-                          />
-                        </div>
+                        <img
+                          src={[
+                            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+                            "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
+                            "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+                            "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80"
+                          ][tileCueIndex % 5]}
+                          alt="Preview Keyframe"
+                          className="absolute inset-0 w-full h-full object-cover transition-all duration-150 animate-in fade-in"
+                        />
                       )}
 
                       {/* Muted Video Preview Loop */}
