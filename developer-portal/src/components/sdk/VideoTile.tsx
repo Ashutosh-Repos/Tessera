@@ -7,7 +7,7 @@ import {
   Volume2 
 } from 'lucide-react';
 import { cn } from './utils';
-import { parseVTTCues, createDemoPosterDataUrl, type SpriteCue } from './vtt';
+import { parseVTTCues, generateSpriteCuesForDuration, createDemoPosterDataUrl, type SpriteCue } from './vtt';
 
 export interface VideoTileProps {
   id?: string;
@@ -73,10 +73,19 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   const flipbookIntervalRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 1. Fetch & Parse WebVTT file if provided
+  // 1. Parse or Generate Sprite Cues
   useEffect(() => {
+    if (spriteUrl && !spriteUrl.endsWith('.vtt') && !spriteVttUrl) {
+      const generated = generateSpriteCuesForDuration(100, 20, spriteUrl);
+      setVttCues(generated);
+      return;
+    }
+
     const targetVtt = spriteVttUrl || (spriteUrl && spriteUrl.endsWith('.vtt') ? spriteUrl : undefined);
-    if (!targetVtt) return;
+    if (!targetVtt) {
+      setVttCues([]);
+      return;
+    }
 
     let isSubscribed = true;
     fetch(targetVtt)
@@ -85,13 +94,6 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         if (!isSubscribed || !text) return;
         const parsed = parseVTTCues(text, targetVtt);
         setVttCues(parsed);
-
-        // Preload sprite images into browser memory cache for instantaneous rendering on hover
-        const uniqueUrls = Array.from(new Set(parsed.map(c => c.url)));
-        uniqueUrls.forEach(url => {
-          const img = new Image();
-          img.src = url;
-        });
       })
       .catch(err => console.warn('Failed to parse tile VTT:', err));
 
@@ -126,7 +128,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     }
   };
 
-  // 3. Sprite Flipbook Cycling Animation
+  // 3. Sprite Flipbook Cycling Animation or Muted Video Playback
   const activeFrames = previewFrames || DEFAULT_PREVIEW_FRAMES;
 
   useEffect(() => {
@@ -135,7 +137,11 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       return;
     }
 
-    if (vttCues.length > 0) {
+    if (previewVideoUrl && !spriteUrl) {
+      if (videoRef.current) {
+        videoRef.current.play().then(() => setIsVideoPlaying(true)).catch(() => {});
+      }
+    } else if (vttCues.length > 0) {
       // Sequence through WebVTT cues at 2.5 frames per second
       flipbookIntervalRef.current = window.setInterval(() => {
         setActiveCueIndex(prev => (prev + 1) % vttCues.length);
@@ -145,14 +151,10 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       flipbookIntervalRef.current = window.setInterval(() => {
         setActiveCueIndex(prev => (prev + 1) % activeFrames.length);
       }, 350);
-
-      if (previewVideoUrl && videoRef.current) {
-        videoRef.current.play().then(() => setIsVideoPlaying(true)).catch(() => {});
-      }
     }
 
     return () => clearInterval(flipbookIntervalRef.current);
-  }, [isHovered, vttCues, activeFrames, previewVideoUrl]);
+  }, [isHovered, vttCues, activeFrames, previewVideoUrl, spriteUrl]);
 
   // Active Sprite Style or Fallback Image Frame
   const activeFrameUrl = useMemo(() => {
