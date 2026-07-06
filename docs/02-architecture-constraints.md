@@ -47,7 +47,10 @@ The following table details the hard quantitative parameters configured in the u
 
 ### 4. 100% Go Standard Library Preference & CGo Elimination
 *   **Rationale:** Relying on C-bindings to libavcodec/libavformat via `cgo` introduces memory leaks, segmentation faults that crash the Go runtime, cross-compilation headaches, and strict C-library dependency locks.
-*   **Enforcement:** The codebase uses standard Go standard library features (`net/http`, `context`, `sync`, `os/exec`). Transcoding relies strictly on external invocation of the `ffmpeg` CLI binary. This allows operators to swap FFmpeg versions, inject custom build flags, or enable proprietary GPU hardware acceleration drivers (`nvenc`, `vaapi`, `videotoolbox`) independently of the Go application binary.
+*   **Enforcement:** The codebase uses standard Go features (`net/http`, `context`, `sync`, `os/exec`) requiring Go 1.24+. Transcoding relies strictly on external invocation of the `ffmpeg` CLI binary. This allows operators to swap FFmpeg versions, inject custom build flags, or enable proprietary GPU hardware acceleration drivers (`nvenc`, `vaapi`, `videotoolbox`) independently of the Go application binary.
+
+### 5. 1MB Faststart Moov Atom Inspection Buffer
+*   **Rationale:** Large high-bitrate / 4K MP4 videos can feature extensive `moov` atom sample tables exceeding 64KB. Reading 1MB from the S3 stream prefix ensures faststart moov structures are reliably identified before slicing without resorting to unnecessary full-file S3 downloads.
 
 ### 5. Shared-Nothing State Isolation
 *   **Rationale:** In a cloud-native autoscaling environment, compute nodes (Gateways, Coordinators, Workers) must be completely ephemeral. Nodes can be terminated at any moment by Kubernetes HPA, KEDA, or spot-instance evictions.

@@ -4,7 +4,7 @@
 
 **A hyper-scalable, cloud-agnostic, multi-region video ingestion and distributed transcoding engine built for global scale.**
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev)
 [![Next.js](https://img.shields.io/badge/Next.js-16_App_Router-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-5.0+-007808?style=for-the-badge&logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
@@ -21,9 +21,10 @@
 
 ## ⚡ Key Highlights
 
-- **⚡ Faststart GOP-Aligned MP4 Stream Slicing**: Reads raw 64KB `moov`/`mdat` atoms directly over S3 HTTP range requests to slice 50GB source videos into GOP-aligned chunk tasks in **<500ms** without downloading source files.
+- **⚡ Faststart GOP-Aligned MP4 Stream Slicing**: Reads raw 1MB `moov`/`mdat` atoms directly over S3 HTTP range requests to slice 50GB source videos into GOP-aligned chunk tasks in **<500ms** without downloading full source files.
 - **🛡️ 1024 Virtual Partition Consistent Hash Ring**: FNV-1a partition mapping backed by Etcd lease heartbeats and atomic epoch fencing (`OwnerEpoch`), preventing split-brain slicing and duplicate work.
-- **🚀 Shared-Nothing Worker Tier**: Workers pull tasks from NATS JetStream / AWS SQS, check Redis completion bitmaps, execute FFmpeg hardware transcoding (NVENC / VAAPI / CPU), and perform atomic single-pass S3 commits.
+- **🚀 Shared-Nothing Worker Tier**: Workers pull tasks from NATS JetStream / AWS SQS with automatic queue backpressure, check Redis completion bitmaps, execute FFmpeg hardware transcoding (NVENC / VAAPI / CPU with valid flag ordering), and perform atomic single-pass S3 commits.
+- **📡 Enriched Real-Time Telemetry Stream**: Redis Stream (`progress:{jobID}`) emits live progress percentages, phase transitions, and rich asset metadata (`sprite_key`, `sprite_vtt`, `thumbnails`, `width`, `height`, `fps`, `duration`) directly to connected WebSocket/SSE clients.
 - **🌐 Geo-Scale Multi-Region Federation**: Isolated per-region compute stacks (US-East, EU-West, AP-East) with region-prefixed job IDs (`us-east:uuid`), Anycast routing, and automated Cross-Region Replication (CRR) for manifests.
 - **💻 Complete Web Suite**: Includes a Next.js 16 **Developer Portal** (Upload Studio + `hls.js` Adaptive Player) and a Vite + React 19 **Admin Console** (SRE Telemetry, Worker GPU metrics, Hash Ring Lease visualizer).
 
