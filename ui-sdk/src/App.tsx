@@ -1,13 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { VideoUploader } from './components/VideoUploader';
 import { VideoPlayer } from './components/VideoPlayer';
 import { VideoTile } from './components/VideoTile';
-import { createDemoSpriteDataUrl, createDemoPosterDataUrl, createDemoAvatarDataUrl } from './lib/vtt';
+import { createDemoAvatarDataUrl } from './lib/vtt';
 
 function App() {
   const GATEWAY_URL = 'http://localhost:8080';
   const DEMO_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-  const demoSpriteUrl = useMemo(() => createDemoSpriteDataUrl(), []);
   
   const [hlsUrl, setHlsUrl] = useState<string>(DEMO_HLS_URL);
 
@@ -52,9 +51,10 @@ function App() {
                 channelAvatar={createDemoAvatarDataUrl('DS', 210)}
                 views="482K views"
                 uploadedAt="2 days ago"
-                duration="14:20"
-                posterUrl={createDemoPosterDataUrl('Distributed Transcoding Fleets', 210)}
-                spriteUrl={demoSpriteUrl}
+                duration="10:34"
+                posterUrl="/demo/poster.jpg"
+                spriteUrl="/demo/sprite.jpg"
+                spriteVttUrl="/demo/sprite.vtt"
                 badge="4K"
                 isVerified={true}
               />
@@ -80,8 +80,8 @@ function App() {
             
             <VideoPlayer 
               hlsUrl={hlsUrl} 
-              spriteUrl={demoSpriteUrl}
-              spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
+              spriteUrl="/demo/sprite.jpg"
+              spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 30 }}
             />
             
             <p className="text-center text-[10px] text-neutral-500 font-mono mt-2 bg-neutral-950 py-3 rounded border border-neutral-900/60 uppercase tracking-wider">

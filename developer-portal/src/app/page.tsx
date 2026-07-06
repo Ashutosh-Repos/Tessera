@@ -142,6 +142,18 @@ export default function Home() {
   const [tileChannel, setTileChannel] = useState<string>("DeepMind Systems");
   const [tileBadge, setTileBadge] = useState<string>("4K");
   const [tilePreviewMode, setTilePreviewMode] = useState<"sprite" | "video">("sprite");
+  const [tileHoverScale, setTileHoverScale] = useState<number>(1.02);
+  const [tileHoverDelay, setTileHoverDelay] = useState<number>(400);
+  const [tileFlipbookInterval, setTileFlipbookInterval] = useState<number>(350);
+  const [tileBorderRadius, setTileBorderRadius] = useState<number>(12);
+  const [tileAspectRatio, setTileAspectRatio] = useState<string>("16/9");
+  const [tileTitleLines, setTileTitleLines] = useState<1 | 2 | 3>(2);
+  const [tileTheme, setTileTheme] = useState<"dark" | "light">("dark");
+  const [tileShowBadge, setTileShowBadge] = useState<boolean>(true);
+  const [tileShowDuration, setTileShowDuration] = useState<boolean>(true);
+  const [tileShowProgressBar, setTileShowProgressBar] = useState<boolean>(true);
+  const [tileShowAvatar, setTileShowAvatar] = useState<boolean>(true);
+  const [tileShowVerified, setTileShowVerified] = useState<boolean>(true);
 
   // VideoTile Interactive Hover Preview states
   const [isTileHovered, setIsTileHovered] = useState<boolean>(false);
@@ -848,6 +860,82 @@ function App() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Theme Toggle */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">THEME</label>
+                    <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                      <button onClick={() => setTileTheme("dark")} className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${tileTheme === "dark" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>DARK</button>
+                      <button onClick={() => setTileTheme("light")} className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${tileTheme === "light" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>LIGHT</button>
+                    </div>
+                  </div>
+
+                  {/* Hover Scale */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">HOVER_SCALE — {tileHoverScale.toFixed(2)}</label>
+                    <input type="range" min="1" max="1.1" step="0.005" value={tileHoverScale} onChange={(e) => setTileHoverScale(parseFloat(e.target.value))} className="w-full accent-white h-1" />
+                  </div>
+
+                  {/* Hover Delay */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">HOVER_DELAY_MS — {tileHoverDelay}ms</label>
+                    <input type="range" min="0" max="1000" step="50" value={tileHoverDelay} onChange={(e) => setTileHoverDelay(parseInt(e.target.value))} className="w-full accent-white h-1" />
+                  </div>
+
+                  {/* Flipbook Interval */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">FLIPBOOK_INTERVAL_MS — {tileFlipbookInterval}ms</label>
+                    <input type="range" min="100" max="1000" step="50" value={tileFlipbookInterval} onChange={(e) => setTileFlipbookInterval(parseInt(e.target.value))} className="w-full accent-white h-1" />
+                  </div>
+
+                  {/* Border Radius */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">BORDER_RADIUS — {tileBorderRadius}px</label>
+                    <input type="range" min="0" max="24" step="1" value={tileBorderRadius} onChange={(e) => setTileBorderRadius(parseInt(e.target.value))} className="w-full accent-white h-1" />
+                  </div>
+
+                  {/* Aspect Ratio */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">ASPECT_RATIO</label>
+                    <select value={tileAspectRatio} onChange={(e) => setTileAspectRatio(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 transition-colors">
+                      <option value="16/9">16:9</option>
+                      <option value="4/3">4:3</option>
+                      <option value="1/1">1:1</option>
+                      <option value="21/9">21:9</option>
+                    </select>
+                  </div>
+
+                  {/* Title Lines */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">TITLE_LINES</label>
+                    <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                      {([1, 2, 3] as const).map(n => (
+                        <button key={n} onClick={() => setTileTitleLines(n)} className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${tileTitleLines === n ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Visibility Toggles */}
+                  <div className="space-y-2 pt-1">
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-2">VISIBILITY_TOGGLES</label>
+                    {[
+                      { label: 'BADGE', value: tileShowBadge, setter: setTileShowBadge },
+                      { label: 'DURATION', value: tileShowDuration, setter: setTileShowDuration },
+                      { label: 'PROGRESS_BAR', value: tileShowProgressBar, setter: setTileShowProgressBar },
+                      { label: 'AVATAR', value: tileShowAvatar, setter: setTileShowAvatar },
+                      { label: 'VERIFIED', value: tileShowVerified, setter: setTileShowVerified },
+                    ].map(({ label, value, setter }) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-zinc-400">{label}</span>
+                        <button
+                          onClick={() => setter(!value)}
+                          className={`relative w-8 h-4 rounded-full transition-colors ${value ? 'bg-white' : 'bg-zinc-800'}`}
+                        >
+                          <span className={`absolute top-0.5 ${value ? 'right-0.5' : 'left-0.5'} w-3 h-3 rounded-full transition-all ${value ? 'bg-black' : 'bg-zinc-500'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -869,8 +957,8 @@ function App() {
                 <div className="w-full max-w-xl animate-in fade-in duration-200">
                   <VideoPlayer 
                     hlsUrl={hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}
-                    spriteUrl={demoSpriteUrl}
-                    spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
+                    spriteUrl="/demo/sprite.jpg"
+                    spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 30 }}
                   />
                 </div>
               ) : (
@@ -881,11 +969,24 @@ function App() {
                     badge={tileBadge}
                     views="482K views"
                     uploadedAt="2 days ago"
-                    duration="14:20"
-                    posterUrl={createDemoPosterDataUrl(tileTitle)}
+                    duration="10:34"
+                    posterUrl="/demo/poster.jpg"
                     previewVideoUrl={tilePreviewMode === "video" ? (hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8") : undefined}
-                    spriteUrl={tilePreviewMode === "sprite" ? demoSpriteUrl : undefined}
+                    spriteUrl={tilePreviewMode === "sprite" ? "/demo/sprite.jpg" : undefined}
+                    spriteVttUrl={tilePreviewMode === "sprite" ? "/demo/sprite.vtt" : undefined}
                     isVerified={true}
+                    hoverScale={tileHoverScale}
+                    hoverDelayMs={tileHoverDelay}
+                    flipbookIntervalMs={tileFlipbookInterval}
+                    borderRadius={tileBorderRadius}
+                    aspectRatio={tileAspectRatio}
+                    titleLines={tileTitleLines}
+                    theme={tileTheme}
+                    showBadge={tileShowBadge}
+                    showDuration={tileShowDuration}
+                    showProgressBar={tileShowProgressBar}
+                    showAvatar={tileShowAvatar}
+                    showVerified={tileShowVerified}
                   />
                 </div>
               )}
