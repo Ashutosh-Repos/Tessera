@@ -150,6 +150,11 @@ export default function Home() {
   const [playerShowTimeDisplay, setPlayerShowTimeDisplay] = useState<boolean>(true);
   const [playerShowSeekRipple, setPlayerShowSeekRipple] = useState<boolean>(true);
 
+  // Seek Overlay Controls
+  const [playerShowOverlaySeekButtons, setPlayerShowOverlaySeekButtons] = useState<boolean>(true);
+  const [playerOverlaySeekButtonsStyle, setPlayerOverlaySeekButtonsStyle] = useState<'center' | 'sides'>('center');
+  const [playerSeekIntervalSec, setPlayerSeekIntervalSec] = useState<number>(10);
+
   // VideoTile states
   const [tileTitle, setTileTitle] = useState<string>("Building Hyper-Scalable Distributed Transcoding Fleets with Go & NATS JetStream");
   const [tileChannel, setTileChannel] = useState<string>("DeepMind Systems");
@@ -468,6 +473,9 @@ function App() {
       showVolumeSlider={${playerShowVolumeSlider}}
       showTimeDisplay={${playerShowTimeDisplay}}
       showSeekRipple={${playerShowSeekRipple}}
+      showOverlaySeekButtons={${playerShowOverlaySeekButtons}}
+      overlaySeekButtonsStyle="${playerOverlaySeekButtonsStyle}"
+      seekIntervalSec={${playerSeekIntervalSec}}
     />
   );
 }`
@@ -892,6 +900,53 @@ function App() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Overlay Seek Buttons Configuration */}
+                  <div className="border-t border-zinc-900 pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="block font-mono text-[10px] text-zinc-500">SHOW_OVERLAY_SEEK</label>
+                      <button
+                        onClick={() => setPlayerShowOverlaySeekButtons(!playerShowOverlaySeekButtons)}
+                        className={`relative w-8 h-4 rounded-full transition-colors ${playerShowOverlaySeekButtons ? 'bg-white' : 'bg-zinc-800'}`}
+                      >
+                        <span className={`absolute top-0.5 ${playerShowOverlaySeekButtons ? 'right-0.5' : 'left-0.5'} w-3 h-3 rounded-full transition-all ${playerShowOverlaySeekButtons ? 'bg-black' : 'bg-zinc-500'}`} />
+                      </button>
+                    </div>
+
+                    {playerShowOverlaySeekButtons && (
+                      <>
+                        {/* Style Select */}
+                        <div>
+                          <label className="block font-mono text-[10px] text-zinc-500 mb-1">OVERLAY_SEEK_STYLE</label>
+                          <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                            {(['center', 'sides'] as const).map(style => (
+                              <button 
+                                key={style} 
+                                onClick={() => setPlayerOverlaySeekButtonsStyle(style)} 
+                                className={`flex-1 py-1 font-mono text-[9px] font-bold rounded transition-colors uppercase ${playerOverlaySeekButtonsStyle === style ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                              >
+                                {style}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Interval Select */}
+                        <div>
+                          <label className="block font-mono text-[10px] text-zinc-500 mb-1">SEEK_INTERVAL_SEC — {playerSeekIntervalSec}s</label>
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="30" 
+                            step="5" 
+                            value={playerSeekIntervalSec} 
+                            onChange={(e) => setPlayerSeekIntervalSec(parseInt(e.target.value))} 
+                            className="w-full accent-white h-1" 
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -1060,6 +1115,9 @@ function App() {
                     showVolumeSlider={playerShowVolumeSlider}
                     showTimeDisplay={playerShowTimeDisplay}
                     showSeekRipple={playerShowSeekRipple}
+                    showOverlaySeekButtons={playerShowOverlaySeekButtons}
+                    overlaySeekButtonsStyle={playerOverlaySeekButtonsStyle}
+                    seekIntervalSec={playerSeekIntervalSec}
                     theme={playerTheme}
                   />
                 </div>

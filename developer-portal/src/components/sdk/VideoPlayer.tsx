@@ -43,6 +43,8 @@ export interface VideoPlayerClassNames {
   helpModal?: string;
   controlButtonLeft?: string;
   controlButtonRight?: string;
+  overlaySeekButton?: string;
+  overlaySeekButtonIcon?: string;
 }
 
 export interface SpriteConfig {
@@ -86,6 +88,11 @@ export interface VideoPlayerProps {
   showVolumeSlider?: boolean;
   showTimeDisplay?: boolean;
   showSeekRipple?: boolean;
+
+  // Overlay Seek Options
+  showOverlaySeekButtons?: boolean;
+  overlaySeekButtonsStyle?: 'center' | 'sides';
+  seekIntervalSec?: number;
 
   // Theme
   theme?: 'dark' | 'light';
@@ -131,6 +138,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   showVolumeSlider = true,
   showTimeDisplay = true,
   showSeekRipple = true,
+  showOverlaySeekButtons = true,
+  overlaySeekButtonsStyle = 'center',
+  seekIntervalSec = 10,
   theme = 'dark',
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -966,10 +976,85 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
             onClick={togglePlay}
           >
-            <button className={cn("rounded-full bg-white p-5 text-black transition-transform duration-200 hover:scale-110 active:scale-95 shadow-2xl border border-white/40", classNames.playButton)}>
-              <Play className="h-7 w-7 fill-current translate-x-0.5" />
-            </button>
+            {showOverlaySeekButtons && overlaySeekButtonsStyle === 'center' ? (
+              <div className="flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
+                {/* Center Seek Backward */}
+                <button 
+                  onClick={() => seekRelative(-seekIntervalSec)}
+                  className={cn(
+                    "rounded-full bg-white/10 hover:bg-white/20 text-white p-4 transition-all hover:scale-110 active:scale-95 shadow-2xl border border-white/15 flex items-center justify-center relative group",
+                    classNames.overlaySeekButton
+                  )}
+                  aria-label={`Seek backward ${seekIntervalSec} seconds`}
+                >
+                  <RotateCcw className={cn("h-5 w-5 text-white/90", classNames.overlaySeekButtonIcon)} />
+                  <span className="absolute text-[8px] font-mono font-bold select-none text-white/90 translate-y-0.5">{seekIntervalSec}</span>
+                </button>
+
+                {/* Center Play Button */}
+                <button 
+                  onClick={togglePlay}
+                  className={cn("rounded-full bg-white p-5 text-black transition-transform duration-200 hover:scale-110 active:scale-95 shadow-2xl border border-white/40", classNames.playButton)}
+                >
+                  <Play className="h-7 w-7 fill-current translate-x-0.5" />
+                </button>
+
+                {/* Center Seek Forward */}
+                <button 
+                  onClick={() => seekRelative(seekIntervalSec)}
+                  className={cn(
+                    "rounded-full bg-white/10 hover:bg-white/20 text-white p-4 transition-all hover:scale-110 active:scale-95 shadow-2xl border border-white/15 flex items-center justify-center relative group",
+                    classNames.overlaySeekButton
+                  )}
+                  aria-label={`Seek forward ${seekIntervalSec} seconds`}
+                >
+                  <RotateCw className={cn("h-5 w-5 text-white/90", classNames.overlaySeekButtonIcon)} />
+                  <span className="absolute text-[8px] font-mono font-bold select-none text-white/90 translate-y-0.5">{seekIntervalSec}</span>
+                </button>
+              </div>
+            ) : (
+              <button className={cn("rounded-full bg-white p-5 text-black transition-transform duration-200 hover:scale-110 active:scale-95 shadow-2xl border border-white/40", classNames.playButton)}>
+                <Play className="h-7 w-7 fill-current translate-x-0.5" />
+              </button>
+            )}
           </div>
+        )}
+
+        {/* Sides Overlay Seek Buttons (visible on hover or when paused) */}
+        {showOverlaySeekButtons && overlaySeekButtonsStyle === 'sides' && (
+          <>
+            {/* Left Side Seek Button */}
+            <div className="absolute inset-y-0 left-0 flex items-center justify-start pl-6 pointer-events-none z-15">
+              <button 
+                onClick={(e) => { e.stopPropagation(); seekRelative(-seekIntervalSec); }}
+                className={cn(
+                  "pointer-events-auto rounded-full bg-black/50 hover:bg-black/75 text-white p-3.5 border border-white/10 hover:scale-110 active:scale-95 transition-all shadow-2xl flex items-center justify-center relative group opacity-0 group-hover:opacity-100",
+                  !isPlaying && "opacity-100",
+                  classNames.overlaySeekButton
+                )}
+                aria-label={`Seek backward ${seekIntervalSec} seconds`}
+              >
+                <RotateCcw className={cn("h-5 w-5 text-white/95", classNames.overlaySeekButtonIcon)} />
+                <span className="absolute text-[8px] font-mono font-bold select-none text-white/90 translate-y-0.5">{seekIntervalSec}</span>
+              </button>
+            </div>
+
+            {/* Right Side Seek Button */}
+            <div className="absolute inset-y-0 right-0 flex items-center justify-end pr-6 pointer-events-none z-15">
+              <button 
+                onClick={(e) => { e.stopPropagation(); seekRelative(seekIntervalSec); }}
+                className={cn(
+                  "pointer-events-auto rounded-full bg-black/50 hover:bg-black/75 text-white p-3.5 border border-white/10 hover:scale-110 active:scale-95 transition-all shadow-2xl flex items-center justify-center relative group opacity-0 group-hover:opacity-100",
+                  !isPlaying && "opacity-100",
+                  classNames.overlaySeekButton
+                )}
+                aria-label={`Seek forward ${seekIntervalSec} seconds`}
+              >
+                <RotateCw className={cn("h-5 w-5 text-white/95", classNames.overlaySeekButtonIcon)} />
+                <span className="absolute text-[8px] font-mono font-bold select-none text-white/90 translate-y-0.5">{seekIntervalSec}</span>
+              </button>
+            </div>
+          </>
         )}
 
         {/* Buffering Spinner Overlay */}
