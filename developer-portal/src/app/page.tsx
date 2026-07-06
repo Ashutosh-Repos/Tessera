@@ -883,7 +883,7 @@ function App() {
                     uploadedAt="2 days ago"
                     duration="14:20"
                     posterUrl={createDemoPosterDataUrl(tileTitle)}
-                    previewVideoUrl={tilePreviewMode === "video" ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" : undefined}
+                    previewVideoUrl={tilePreviewMode === "video" ? (hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8") : undefined}
                     spriteUrl={tilePreviewMode === "sprite" ? demoSpriteUrl : undefined}
                     isVerified={true}
                   />

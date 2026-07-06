@@ -6,6 +6,7 @@ import {
   VolumeX, 
   Volume2 
 } from 'lucide-react';
+import Hls from 'hls.js';
 import { cn } from '../lib/utils';
 import { parseVTTCues, generateSpriteCuesForDuration, createDemoPosterDataUrl, type SpriteCue } from '../lib/vtt';
 
@@ -99,6 +100,30 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 
     return () => { isSubscribed = false; };
   }, [spriteUrl, spriteVttUrl]);
+
+  // Attach HLS stream to video element if previewVideoUrl is HLS stream
+  useEffect(() => {
+    if (!previewVideoUrl || !videoRef.current) return;
+
+    let hls: Hls | null = null;
+    const video = videoRef.current;
+
+    if (previewVideoUrl.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        hls = new Hls({ autoStartLoad: true });
+        hls.loadSource(previewVideoUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = previewVideoUrl;
+      }
+    } else {
+      video.src = previewVideoUrl;
+    }
+
+    return () => {
+      if (hls) hls.destroy();
+    };
+  }, [previewVideoUrl]);
 
   // Unmount Timer Cleanup
   useEffect(() => {
