@@ -48,7 +48,9 @@ export interface SpriteConfig {
 }
 
 export interface VideoPlayerProps {
-  hlsUrl: string;
+  hlsUrl?: string;
+  gatewayUrl?: string;      // Backend Gateway URL, e.g. http://localhost:8080
+  jobId?: string;           // Transcoding Job ID, e.g. job_us-east:1234
   poster?: string;
   autoplay?: boolean;
   spriteUrl?: string;       // Direct sprite image URL or WebVTT URL

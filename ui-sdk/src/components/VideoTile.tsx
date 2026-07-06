@@ -11,13 +11,15 @@ import { parseVTTCues, type SpriteCue } from '../lib/vtt';
 
 export interface VideoTileProps {
   id?: string;
+  gatewayUrl?: string;          // Backend Gateway URL, e.g. http://localhost:8080
+  jobId?: string;               // Transcoding Job ID, e.g. job_us-east:1234
   title: string;
   channelName: string;
   channelAvatar?: string;
   views?: string;
   uploadedAt?: string;
   duration?: string;            // e.g. "12:34"
-  posterUrl: string;
+  posterUrl?: string;
   spriteUrl?: string;           // Direct sprite sheet or VTT URL
   spriteVttUrl?: string;        // WebVTT file for thumbnail cues
   previewFrames?: string[];     // Optional array of keyframe image URLs for flipbook
@@ -38,23 +40,29 @@ const DEFAULT_PREVIEW_FRAMES = [
 ];
 
 export const VideoTile: React.FC<VideoTileProps> = ({
+  gatewayUrl,
+  jobId,
   title,
   channelName,
   channelAvatar,
   views = '124K views',
   uploadedAt = '3 days ago',
   duration = '10:15',
-  posterUrl,
+  posterUrl: initialPosterUrl,
   spriteUrl,
-  spriteVttUrl,
+  spriteVttUrl: initialSpriteVttUrl,
   previewFrames,
-  previewVideoUrl,
+  previewVideoUrl: initialPreviewVideoUrl,
   badge = '4K',
   isVerified = true,
   onClick,
   onMenuClick,
   className,
 }) => {
+  // Resolve Backend URLs if gatewayUrl and jobId are passed
+  const posterUrl = initialPosterUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/poster.jpg` : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80');
+  const spriteVttUrl = initialSpriteVttUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/sprite.vtt` : undefined);
+  const previewVideoUrl = initialPreviewVideoUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/preview.mp4` : undefined);
   const [isHovered, setIsHovered] = useState(false);
   const [vttCues, setVttCues] = useState<SpriteCue[]>([]);
   const [activeCueIndex, setActiveCueIndex] = useState(0);
