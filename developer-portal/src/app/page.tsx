@@ -125,7 +125,7 @@ export default function Home() {
   const [paddingSize, setPaddingSize] = useState<number>(24); // in px
   
   const [playerAccent, setPlayerAccent] = useState<string>("#ffffff");
-  const [playerAspectRatio, setPlayerAspectRatio] = useState<"16/9" | "4/3" | "1/1">("16/9");
+  const [playerAspectRatio, setPlayerAspectRatio] = useState<string>("16/9");
   
   // Extended player styling controls
   const [controlsMode, setControlsMode] = useState<"overlay" | "below">("overlay");
@@ -133,9 +133,22 @@ export default function Home() {
   const [controlsBgOpacity, setControlsBgOpacity] = useState<number>(70); // percent
   const [controlsIconColor, setControlsIconColor] = useState<string>("#ffffff");
   const [progressBarColor, setProgressBarColor] = useState<string>("#ffffff");
-  const [progressBarHeight, setProgressBarHeight] = useState<number>(3); // px
+  const [progressBarHeight, setProgressBarHeight] = useState<number>(6); // px
   const [playerBorderRadius, setPlayerBorderRadius] = useState<number>(8); // px
   const [showControlsOnHover, setShowControlsOnHover] = useState<boolean>(true);
+  const [playerAutoHideMs, setPlayerAutoHideMs] = useState<number>(3000);
+  const [playerTheme, setPlayerTheme] = useState<"dark" | "light">("dark");
+
+  // Visibility Controls states
+  const [playerShowPlayOverlay, setPlayerShowPlayOverlay] = useState<boolean>(true);
+  const [playerShowDiagnosticsButton, setPlayerShowDiagnosticsButton] = useState<boolean>(true);
+  const [playerShowSpeedSelector, setPlayerShowSpeedSelector] = useState<boolean>(true);
+  const [playerShowQualitySelector, setPlayerShowQualitySelector] = useState<boolean>(true);
+  const [playerShowPipButton, setPlayerShowPipButton] = useState<boolean>(true);
+  const [playerShowHelpButton, setPlayerShowHelpButton] = useState<boolean>(true);
+  const [playerShowVolumeSlider, setPlayerShowVolumeSlider] = useState<boolean>(true);
+  const [playerShowTimeDisplay, setPlayerShowTimeDisplay] = useState<boolean>(true);
+  const [playerShowSeekRipple, setPlayerShowSeekRipple] = useState<boolean>(true);
 
   // VideoTile states
   const [tileTitle, setTileTitle] = useState<string>("Hyper-Scalable Transcoding Fleets");
@@ -428,17 +441,33 @@ function App() {
     ? `import { VideoPlayer } from '@distributed-transcoder/ui-sdk';
 
 function App() {
-       <VideoPlayer 
+  return (
+    <VideoPlayer 
       gatewayUrl="http://localhost:8080"
       jobId="job_us-east:768244ad"
-      hlsUrl="${hlsSourceUrl}"
-      spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
+      hlsUrl="${hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}"
+      spriteUrl="/demo/sprite.jpg"
+      spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 30 }}
       aspectRatio="${playerAspectRatio}"
       accentColor="${playerAccent}"
-      autoPlay={false}
       borderRadius={${playerBorderRadius}}
-      controlsPosition="${controlsMode}"${controlsMode === "overlay" ? `\n      showControlsOnHover={${showControlsOnHover}}` : ""}
-      onPlay={() => console.log("HLS stream playback started")}
+      controlsPosition="${controlsMode}"
+      controlsBg="${controlsBg}"
+      controlsBgOpacity={${controlsBgOpacity}}
+      controlsIconColor="${controlsIconColor}"
+      progressBarHeight={${progressBarHeight}}
+      showControlsOnHover={${showControlsOnHover}}
+      controlsAutoHideMs={${playerAutoHideMs}}
+      theme="${playerTheme}"
+      showPlayOverlay={${playerShowPlayOverlay}}
+      showDiagnosticsButton={${playerShowDiagnosticsButton}}
+      showSpeedSelector={${playerShowSpeedSelector}}
+      showQualitySelector={${playerShowQualitySelector}}
+      showPipButton={${playerShowPipButton}}
+      showHelpButton={${playerShowHelpButton}}
+      showVolumeSlider={${playerShowVolumeSlider}}
+      showTimeDisplay={${playerShowTimeDisplay}}
+      showSeekRipple={${playerShowSeekRipple}}
     />
   );
 }`
@@ -810,6 +839,47 @@ function App() {
                       </button>
                     </div>
                   )}
+
+                  {/* Theme Toggle */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">THEME</label>
+                    <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
+                      <button onClick={() => setPlayerTheme("dark")} className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${playerTheme === "dark" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>DARK</button>
+                      <button onClick={() => setPlayerTheme("light")} className={`flex-1 py-1.5 font-mono text-[10px] font-bold rounded transition-colors ${playerTheme === "light" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>LIGHT</button>
+                    </div>
+                  </div>
+
+                  {/* Auto Hide Delay */}
+                  <div>
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-1">AUTO_HIDE_DELAY_MS — {playerAutoHideMs}ms</label>
+                    <input type="range" min="500" max="6000" step="250" value={playerAutoHideMs} onChange={(e) => setPlayerAutoHideMs(parseInt(e.target.value))} className="w-full accent-white h-1" />
+                  </div>
+
+                  {/* Visibility Toggles */}
+                  <div className="space-y-2 pt-1">
+                    <label className="block font-mono text-[10px] text-zinc-500 mb-2">VISIBILITY_TOGGLES</label>
+                    {[
+                      { label: 'PLAY_OVERLAY', value: playerShowPlayOverlay, setter: setPlayerShowPlayOverlay },
+                      { label: 'DIAGNOSTICS_BUTTON', value: playerShowDiagnosticsButton, setter: setPlayerShowDiagnosticsButton },
+                      { label: 'SPEED_SELECTOR', value: playerShowSpeedSelector, setter: setPlayerShowSpeedSelector },
+                      { label: 'QUALITY_SELECTOR', value: playerShowQualitySelector, setter: setPlayerShowQualitySelector },
+                      { label: 'PIP_BUTTON', value: playerShowPipButton, setter: setPlayerShowPipButton },
+                      { label: 'HELP_BUTTON', value: playerShowHelpButton, setter: setPlayerShowHelpButton },
+                      { label: 'VOLUME_SLIDER', value: playerShowVolumeSlider, setter: setPlayerShowVolumeSlider },
+                      { label: 'TIME_DISPLAY', value: playerShowTimeDisplay, setter: setPlayerShowTimeDisplay },
+                      { label: 'SEEK_RIPPLE', value: playerShowSeekRipple, setter: setPlayerShowSeekRipple },
+                    ].map(({ label, value, setter }) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-zinc-400">{label}</span>
+                        <button
+                          onClick={() => setter(!value)}
+                          className={`relative w-8 h-4 rounded-full transition-colors ${value ? 'bg-white' : 'bg-zinc-800'}`}
+                        >
+                          <span className={`absolute top-0.5 ${value ? 'right-0.5' : 'left-0.5'} w-3 h-3 rounded-full transition-all ${value ? 'bg-black' : 'bg-zinc-500'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -959,6 +1029,26 @@ function App() {
                     hlsUrl={hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}
                     spriteUrl="/demo/sprite.jpg"
                     spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 30 }}
+                    accentColor={progressBarColor}
+                    controlsAutoHideMs={playerAutoHideMs}
+                    borderRadius={playerBorderRadius}
+                    aspectRatio={playerAspectRatio}
+                    controlsPosition={controlsMode}
+                    controlsBg={controlsBg}
+                    controlsBgOpacity={controlsBgOpacity}
+                    controlsIconColor={controlsIconColor}
+                    progressBarHeight={progressBarHeight}
+                    showControlsOnHover={showControlsOnHover}
+                    showPlayOverlay={playerShowPlayOverlay}
+                    showDiagnosticsButton={playerShowDiagnosticsButton}
+                    showSpeedSelector={playerShowSpeedSelector}
+                    showQualitySelector={playerShowQualitySelector}
+                    showPipButton={playerShowPipButton}
+                    showHelpButton={playerShowHelpButton}
+                    showVolumeSlider={playerShowVolumeSlider}
+                    showTimeDisplay={playerShowTimeDisplay}
+                    showSeekRipple={playerShowSeekRipple}
+                    theme={playerTheme}
                   />
                 </div>
               ) : (

@@ -38,6 +38,11 @@ export interface VideoPlayerClassNames {
   speedSelectorMenu?: string;
   fullscreenButton?: string;
   pipButton?: string;
+  seekRipple?: string;
+  timeDisplay?: string;
+  helpModal?: string;
+  controlButtonLeft?: string;
+  controlButtonRight?: string;
 }
 
 export interface SpriteConfig {
@@ -58,6 +63,32 @@ export interface VideoPlayerProps {
   spriteConfig?: SpriteConfig; // Config if using sprite grid directly without VTT
   className?: string;
   classNames?: VideoPlayerClassNames;
+
+  // Customization Props
+  accentColor?: string;
+  controlsAutoHideMs?: number;
+  borderRadius?: number;
+  aspectRatio?: string;
+  controlsPosition?: "overlay" | "below";
+  controlsBg?: string;
+  controlsBgOpacity?: number;
+  controlsIconColor?: string;
+  progressBarHeight?: number;
+  showControlsOnHover?: boolean;
+
+  // Visibility Controls
+  showPlayOverlay?: boolean;
+  showDiagnosticsButton?: boolean;
+  showSpeedSelector?: boolean;
+  showQualitySelector?: boolean;
+  showPipButton?: boolean;
+  showHelpButton?: boolean;
+  showVolumeSlider?: boolean;
+  showTimeDisplay?: boolean;
+  showSeekRipple?: boolean;
+
+  // Theme
+  theme?: 'dark' | 'light';
 }
 
 interface StreamDiagnostics {
@@ -71,20 +102,37 @@ interface StreamDiagnostics {
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  hlsUrl: initialHlsUrl,
-  gatewayUrl,
-  jobId,
-  poster,
+  hlsUrl, 
+  poster, 
   autoplay = false,
-  spriteUrl: initialSpriteUrl,
+  spriteUrl,
   spriteVttUrl,
   spriteConfig = { width: 160, height: 90, cols: 10, intervalSec: 5 },
   className,
-  classNames = {}
+  classNames = {},
+
+  accentColor = '#ffffff',
+  controlsAutoHideMs = 3000,
+  borderRadius = 8,
+  aspectRatio = '16/9',
+  controlsPosition = 'overlay',
+  controlsBg = '#000000',
+  controlsBgOpacity = 70,
+  controlsIconColor = '#ffffff',
+  progressBarHeight = 6,
+  showControlsOnHover = true,
+
+  showPlayOverlay = true,
+  showDiagnosticsButton = true,
+  showSpeedSelector = true,
+  showQualitySelector = true,
+  showPipButton = true,
+  showHelpButton = true,
+  showVolumeSlider = true,
+  showTimeDisplay = true,
+  showSeekRipple = true,
+  theme = 'dark',
 }) => {
-  // Resolve Backend URLs if gatewayUrl and jobId are passed
-  const hlsUrl = initialHlsUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/master.m3u8` : 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
-  const spriteUrl = initialSpriteUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/sprite.vtt` : undefined);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -381,12 +429,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
     clearTimeout(controlsTimeoutRef.current);
+    if (!showControlsOnHover) return; // Keep visible if showControlsOnHover is false
     controlsTimeoutRef.current = window.setTimeout(() => {
       if (videoRef.current && !videoRef.current.paused) {
         setShowControls(false);
       }
-    }, 3000);
-  }, []);
+    }, controlsAutoHideMs);
+  }, [showControlsOnHover, controlsAutoHideMs]);
 
   // ── Helper Actions ──
   const togglePlay = () => {
@@ -536,197 +585,130 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedPct = duration > 0 ? (buffered / duration) * 100 : 0;
+  const isLight = theme === 'light';
+  const showOverlayControls = isFullscreen || controlsPosition === "overlay";
+  const opacityHex = Math.round(controlsBgOpacity * 2.55).toString(16).padStart(2, '0');
 
-  return (
-    <div
+  const controlBarContent = (
+    <div 
       className={cn(
-        "relative w-full aspect-video rounded-lg overflow-hidden border border-neutral-800 bg-black group select-none shadow-2xl transition-all duration-300",
-        isFullscreen && "rounded-none border-0",
-        className,
-        classNames.container
+        showOverlayControls
+          ? "absolute bottom-0 inset-x-0 px-4 pb-4 pt-16 flex flex-col gap-3 transition-all duration-300 z-20"
+          : "w-full px-4 py-3 flex flex-col gap-3 border-t",
+        showOverlayControls && (showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"),
+        !showOverlayControls && (isLight ? "bg-white border-gray-200" : "bg-neutral-950 border-neutral-900"),
+        classNames.controlBar
       )}
-      ref={containerRef}
-      onMouseMove={showControlsTemporarily}
-      onMouseLeave={() => { if (isPlaying) setShowControls(false); }}
+      style={{
+        background: showOverlayControls
+          ? `linear-gradient(to top, ${controlsBg}${opacityHex} 0%, ${controlsBg}${opacityHex} 75%, transparent 100%)`
+          : undefined,
+        color: controlsIconColor
+      }}
     >
-      <video
-        ref={videoRef}
-        className={cn("w-full h-full object-cover cursor-pointer", classNames.video)}
-        poster={poster}
-        onClick={togglePlay}
-        onDoubleClick={toggleFullscreen}
-        playsInline
-      />
-
-      {/* Ripple Feedback Animation for Seek (-10s / +10s) */}
-      {seekRipple && (
-        <div className={cn(
-          "absolute top-1/2 -translate-y-1/2 flex items-center justify-center p-6 bg-black/60 rounded-full text-white backdrop-blur border border-white/20 animate-in fade-in zoom-in-75 duration-200 pointer-events-none z-30",
-          seekRipple.type === 'rewind' ? "left-12" : "right-12"
-        )}>
-          {seekRipple.type === 'rewind' ? (
-            <div className="flex flex-col items-center gap-1">
-              <RotateCcw className="h-8 w-8 animate-spin" />
-              <span className="font-mono text-xs font-bold">-5s</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <RotateCw className="h-8 w-8 animate-spin" />
-              <span className="font-mono text-xs font-bold">+5s</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Play Overlay (shown when paused) */}
-      {!isPlaying && (
-        <div 
-          className={cn(
-            "absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer transition-opacity duration-300 z-10",
-            classNames.playOverlay
-          )}
-          onClick={togglePlay}
-        >
-          <button className={cn("rounded-full bg-white p-5 text-black transition-transform duration-200 hover:scale-110 active:scale-95 shadow-2xl border border-white/40", classNames.playButton)}>
-            <Play className="h-7 w-7 fill-current translate-x-0.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Buffering Spinner Overlay */}
-      {isBuffering && isPlaying && (
-        <div className={cn("absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none z-10", classNames.bufferingOverlay)}>
-          <div className="h-10 w-10 rounded-full border-2 border-neutral-700 border-t-white animate-spin" />
-        </div>
-      )}
-
-      {/* Diagnostics Overlay */}
-      {showDiagnostics && (
-        <div className={cn(
-          "absolute top-4 left-4 bg-neutral-950/90 border border-neutral-800 rounded-lg p-4 w-64 text-[10px] font-mono text-neutral-300 z-20 space-y-1.5 pointer-events-none shadow-2xl backdrop-blur",
-          classNames.diagnosticsPanel
-        )}>
-          <div className="text-white font-bold border-b border-neutral-800 pb-1.5 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <Activity className="h-3.5 w-3.5 text-white" /> STREAM TELEMETRY
-            </span>
-            <span className="text-[9px] text-neutral-500 font-normal">REAL-TIME</span>
-          </div>
-          <div className="flex justify-between border-b border-neutral-900 pb-1">
-            <span>Resolution</span><span className="font-semibold text-white">{diagnostics.resolution}</span>
-          </div>
-          <div className="flex justify-between border-b border-neutral-900 pb-1">
-            <span>Bitrate</span><span className="font-semibold text-white">{diagnostics.bitrate} Kbps</span>
-          </div>
-          <div className="flex justify-between border-b border-neutral-900 pb-1">
-            <span>Buffer Occupancy</span><span className="font-semibold text-white">{diagnostics.bufferLength}s</span>
-          </div>
-          <div className="flex justify-between border-b border-neutral-900 pb-1">
-            <span>Dropped Frames</span><span className="font-semibold text-white">{diagnostics.droppedFrames}</span>
-          </div>
-          <div className="flex justify-between border-b border-neutral-900 pb-1">
-            <span>Segment Latency</span><span className="font-semibold text-white">{diagnostics.latency}ms</span>
-          </div>
-          <div className="flex justify-between">
-            <span>ABR Level</span><span className="font-semibold text-white">{diagnostics.level + 1}/{diagnostics.totalLevels}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Control Bar */}
-      <div 
-        className={cn(
-          "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/85 to-transparent px-4 pb-4 pt-16 flex flex-col gap-3 transition-all duration-300 z-20",
-          showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none",
-          classNames.controlBar
-        )}
-      >
-        {/* Progress Bar Container with Preview Sprite Scrubbing Tooltip */}
-        <div className="relative w-full">
-          {/* Floating Sprite Preview Scrubbing Tooltip */}
-          {hoverState.visible && (
-            <div 
-              className={cn(
-                "absolute bottom-4 -translate-x-1/2 flex flex-col items-center bg-neutral-950/95 border border-neutral-800 rounded p-1.5 shadow-2xl pointer-events-none z-30 transition-all duration-75",
-                classNames.previewTooltip
-              )}
-              style={{ left: `${hoverState.xPx}px` }}
-            >
-              {currentSpriteStyle ? (
-                <div 
-                  className="rounded border border-neutral-800 overflow-hidden bg-black mb-1 bg-no-repeat"
-                  style={currentSpriteStyle}
-                />
-              ) : (
-                <div className="w-28 h-16 bg-neutral-900 rounded border border-neutral-800 flex items-center justify-center text-[9px] font-mono text-neutral-500 mb-1">
-                  NO PREVIEW
-                </div>
-              )}
-              <span className="text-[10px] font-mono font-bold text-white bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">
-                {formatTime(hoverState.time)}
-              </span>
-            </div>
-          )}
-
-          {/* Seek Progress Line */}
+      {/* Progress Bar Container with Preview Sprite Scrubbing Tooltip */}
+      <div className="relative w-full">
+        {/* Floating Sprite Preview Scrubbing Tooltip */}
+        {hoverState.visible && (
           <div 
             className={cn(
-              "relative h-1.5 bg-neutral-800/80 rounded-full cursor-pointer hover:h-2.5 transition-all duration-150 group/progress",
-              classNames.progressBarContainer
+              "absolute bottom-4 -translate-x-1/2 flex flex-col items-center border rounded p-1.5 shadow-2xl pointer-events-none z-30 transition-all duration-75",
+              isLight ? "bg-white/95 border-gray-200 text-gray-800" : "bg-neutral-950/95 border-neutral-800 text-neutral-300",
+              classNames.previewTooltip
             )}
-            ref={progressRef} 
-            onMouseMove={handleProgressMouseMove}
-            onMouseLeave={handleProgressMouseLeave}
-            onClick={seekTo}
+            style={{ left: `${hoverState.xPx}px` }}
           >
-            {/* Buffered Track */}
-            <div className="absolute inset-y-0 left-0 bg-neutral-700/60 rounded-full" style={{ width: `${bufferedPct}%` }} />
-            
-            {/* Hover Track Indicator */}
-            {hoverState.visible && (
+            {currentSpriteStyle ? (
               <div 
-                className="absolute inset-y-0 left-0 bg-white/20 rounded-full pointer-events-none"
-                style={{ width: `${hoverState.percent}%` }}
+                className={cn("rounded border overflow-hidden bg-black mb-1 bg-no-repeat", isLight ? "border-gray-200" : "border-neutral-800")}
+                style={currentSpriteStyle}
               />
+            ) : (
+              <div className={cn("w-28 h-16 rounded border flex items-center justify-center text-[9px] font-mono mb-1", isLight ? "bg-gray-100 border-gray-200 text-gray-400" : "bg-neutral-900 border-neutral-800 text-neutral-500")}>
+                NO PREVIEW
+              </div>
             )}
+            <span className={cn("text-[10px] font-mono font-bold px-2 py-0.5 rounded border", isLight ? "bg-gray-100 border-gray-200 text-gray-800" : "bg-neutral-900 border-neutral-800 text-white")}>
+              {formatTime(hoverState.time)}
+            </span>
+          </div>
+        )}
 
-            {/* Played Track */}
+        {/* Seek Progress Line */}
+        <div 
+          className={cn(
+            "relative bg-neutral-800/80 rounded-full cursor-pointer transition-all duration-150 group/progress",
+            classNames.progressBarContainer
+          )}
+          style={{ height: `${progressBarHeight}px` }}
+          ref={progressRef} 
+          onMouseMove={handleProgressMouseMove}
+          onMouseLeave={handleProgressMouseLeave}
+          onClick={seekTo}
+        >
+          {/* Buffered Track */}
+          <div className="absolute inset-y-0 left-0 bg-neutral-700/60 rounded-full" style={{ width: `${bufferedPct}%` }} />
+          
+          {/* Hover Track Indicator */}
+          {hoverState.visible && (
             <div 
-              className={cn("absolute inset-y-0 left-0 bg-white rounded-full flex items-center justify-end", classNames.progressBar)}
-              style={{ width: `${progressPct}%` }}
-            >
-              <div className="w-3 h-3 rounded-full bg-white shadow-md scale-0 group-hover/progress:scale-100 transition-transform duration-150 translate-x-1.5" />
-            </div>
+              className="absolute inset-y-0 left-0 bg-white/20 rounded-full pointer-events-none"
+              style={{ width: `${hoverState.percent}%` }}
+            />
+          )}
+
+          {/* Played Track */}
+          <div 
+            className={cn("absolute inset-y-0 left-0 rounded-full flex items-center justify-end", classNames.progressBar)}
+            style={{ width: `${progressPct}%`, backgroundColor: accentColor }}
+          >
+            <div 
+              className="w-3 h-3 rounded-full shadow-md scale-0 group-hover/progress:scale-100 transition-transform duration-150 translate-x-1.5" 
+              style={{ backgroundColor: accentColor }}
+            />
           </div>
         </div>
+      </div>
 
-        {/* Control Buttons Bar */}
-        <div className="flex justify-between items-center">
-          {/* Left Controls */}
-          <div className="flex items-center gap-3">
+      {/* Control Buttons Bar */}
+      <div className="flex justify-between items-center">
+        {/* Left Controls */}
+        <div className="flex items-center gap-3">
+          <button 
+            className={cn(
+              "p-1.5 transition-colors rounded",
+              isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+              classNames.controlButtonLeft
+            )}
+            onClick={togglePlay} 
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            style={{ color: controlsIconColor }}
+          >
+            {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+          </button>
+
+          {/* Volume Control */}
+          <div className="flex items-center gap-1.5 group/volume">
             <button 
-              className="p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10" 
-              onClick={togglePlay} 
-              aria-label={isPlaying ? 'Pause' : 'Play'}
+              className={cn(
+                "p-1.5 transition-colors rounded",
+                isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+                classNames.controlButtonLeft
+              )}
+              onClick={toggleMute} 
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              style={{ color: controlsIconColor }}
             >
-              {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+              {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
-
-            {/* Volume Control */}
-            <div className="flex items-center gap-1.5 group/volume">
-              <button 
-                className="p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10" 
-                onClick={toggleMute} 
-                aria-label={isMuted ? 'Unmute' : 'Mute'}
-              >
-                {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </button>
+            {showVolumeSlider && (
               <input
                 type="range"
                 className={cn(
-                  "w-0 opacity-0 group-hover/volume:w-16 group-hover/volume:opacity-100 transition-all duration-200 h-1 accent-white bg-neutral-800 rounded-full appearance-none cursor-pointer",
+                  "w-0 opacity-0 group-hover/volume:w-16 group-hover/volume:opacity-100 transition-all duration-200 h-1 bg-neutral-800 rounded-full appearance-none cursor-pointer",
                   classNames.volumeSlider
                 )}
+                style={{ accentColor }}
                 min="0"
                 max="1"
                 step="0.05"
@@ -739,23 +721,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   video.muted = newVol === 0;
                 }}
               />
-            </div>
-
-            <span className="text-[11px] font-mono text-neutral-400 select-none">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+            )}
           </div>
 
-          {/* Right Controls */}
-          <div className="flex items-center gap-2.5">
-            {/* Speed Selector */}
+          {showTimeDisplay && (
+            <span className={cn("text-[11px] font-mono select-none", isLight ? "text-gray-500" : "text-neutral-400", classNames.timeDisplay)}>
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          )}
+        </div>
+
+        {/* Right Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Speed Selector */}
+          {showSpeedSelector && (
             <div className="relative">
               <button
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors",
-                  showSpeedMenu && "text-white border-neutral-700 bg-neutral-900",
+                  "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors",
+                  isLight ? "border-gray-300 text-gray-600 hover:text-black hover:bg-gray-150" : "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900",
+                  showSpeedMenu && (isLight ? "text-black border-gray-400 bg-gray-100" : "text-white border-neutral-700 bg-neutral-900"),
                   classNames.speedSelectorButton
                 )}
+                style={{ color: controlsIconColor }}
                 onClick={() => { setShowSpeedMenu(prev => !prev); setShowQualityMenu(false); }}
                 aria-label="Playback speed"
               >
@@ -764,34 +752,40 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
               {showSpeedMenu && (
                 <div className={cn(
-                  "absolute bottom-8 right-0 bg-neutral-950 border border-neutral-800 rounded p-1 shadow-2xl w-24 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
+                  "absolute bottom-8 right-0 border rounded p-1 shadow-2xl w-24 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
+                  isLight ? "bg-white border-gray-250" : "bg-neutral-950 border-neutral-800",
                   classNames.speedSelectorMenu
                 )}>
                   {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
                     <button
                       key={rate}
                       className={cn(
-                        "w-full text-left px-2 py-1 text-[10px] font-mono rounded hover:bg-neutral-900 text-neutral-400 hover:text-white flex justify-between items-center transition-colors",
-                        playbackRate === rate && "text-white font-semibold bg-neutral-900"
+                        "w-full text-left px-2 py-1 text-[10px] font-mono rounded flex justify-between items-center transition-colors",
+                        isLight ? "text-gray-600 hover:bg-gray-100 hover:text-black" : "text-neutral-400 hover:bg-neutral-900 hover:text-white",
+                        playbackRate === rate && (isLight ? "text-black font-semibold bg-gray-100" : "text-white font-semibold bg-neutral-900")
                       )}
                       onClick={() => handleSpeedChange(rate)}
                     >
                       <span>{rate}x</span>
-                      {playbackRate === rate && <span className="text-white text-[8px]">●</span>}
+                      {playbackRate === rate && <span className={isLight ? "text-black text-[8px]" : "text-white text-[8px]"}>●</span>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
+          )}
 
-            {/* Quality Selector */}
+          {/* Quality Selector */}
+          {showQualitySelector && (
             <div className="relative">
               <button
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors",
-                  showQualityMenu && "text-white border-neutral-700 bg-neutral-900",
+                  "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors",
+                  isLight ? "border-gray-300 text-gray-600 hover:text-black hover:bg-gray-150" : "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900",
+                  showQualityMenu && (isLight ? "text-black border-gray-400 bg-gray-100" : "text-white border-neutral-700 bg-neutral-900"),
                   classNames.qualitySelectorButton
                 )}
+                style={{ color: controlsIconColor }}
                 onClick={() => { setShowQualityMenu(prev => !prev); setShowSpeedMenu(false); }}
                 aria-label="Quality"
               >
@@ -800,13 +794,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
               {showQualityMenu && (
                 <div className={cn(
-                  "absolute bottom-8 right-0 bg-neutral-950 border border-neutral-800 rounded p-1 shadow-2xl w-28 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
+                  "absolute bottom-8 right-0 border rounded p-1 shadow-2xl w-28 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
+                  isLight ? "bg-white border-gray-250" : "bg-neutral-950 border-neutral-800",
                   classNames.qualitySelectorMenu
                 )}>
                   <button
                     className={cn(
-                      "w-full text-left px-2 py-1.5 text-[10px] font-mono rounded hover:bg-neutral-900 text-neutral-400 hover:text-white flex justify-between items-center transition-colors",
-                      currentLevel === -1 && "text-white font-semibold bg-neutral-900"
+                      "w-full text-left px-2 py-1.5 text-[10px] font-mono rounded flex justify-between items-center transition-colors",
+                      isLight ? "text-gray-600 hover:bg-gray-100 hover:text-black" : "text-neutral-400 hover:bg-neutral-900 hover:text-white",
+                      currentLevel === -1 && (isLight ? "text-black font-semibold bg-gray-100" : "text-white font-semibold bg-neutral-900")
                     )}
                     onClick={() => setQualityLevel(-1)}
                   >
@@ -816,8 +812,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     <button
                       key={i}
                       className={cn(
-                        "w-full text-left px-2 py-1.5 text-[10px] font-mono rounded hover:bg-neutral-900 text-neutral-400 hover:text-white flex flex-col gap-0.5 transition-colors",
-                        currentLevel === i && "text-white font-semibold bg-neutral-900"
+                        "w-full text-left px-2 py-1.5 text-[10px] font-mono rounded flex flex-col gap-0.5 transition-colors",
+                        isLight ? "text-gray-600 hover:bg-gray-100 hover:text-black" : "text-neutral-400 hover:bg-neutral-900 hover:text-white",
+                        currentLevel === i && (isLight ? "text-black font-semibold bg-gray-100" : "text-white font-semibold bg-neutral-900")
                       )}
                       onClick={() => setQualityLevel(i)}
                     >
@@ -828,98 +825,247 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </div>
               )}
             </div>
+          )}
 
-            {/* Toggle Diagnostics */}
+          {/* Toggle Diagnostics */}
+          {showDiagnosticsButton && (
             <button
               className={cn(
-                "p-1.5 rounded transition-colors hover:bg-white/10",
-                showDiagnostics ? "text-white bg-neutral-900" : "text-neutral-400 hover:text-white"
+                "p-1.5 rounded transition-colors",
+                isLight ? "hover:bg-black/5" : "hover:bg-white/10",
+                showDiagnostics ? (isLight ? "text-black bg-gray-100" : "text-white bg-neutral-900") : (isLight ? "text-gray-500" : "text-neutral-400")
               )}
               onClick={() => setShowDiagnostics(prev => !prev)}
               aria-label="Toggle diagnostics"
+              style={{ color: controlsIconColor }}
             >
               <Activity className="h-4 w-4" />
             </button>
+          )}
 
-            {/* Picture in Picture */}
-            {isPipSupported && (
-              <button 
-                className={cn("p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10", isPip && "text-white bg-neutral-900", classNames.pipButton)} 
-                onClick={togglePip} 
-                aria-label="Picture in Picture"
-              >
-                <PictureInPicture2 className="h-4 w-4" />
-              </button>
-            )}
+          {/* Picture in Picture */}
+          {showPipButton && isPipSupported && (
+            <button 
+              className={cn(
+                "p-1.5 transition-colors rounded",
+                isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+                isPip && (isLight ? "text-black bg-gray-100" : "text-white bg-neutral-900"),
+                classNames.pipButton
+              )} 
+              onClick={togglePip} 
+              aria-label="Picture in Picture"
+              style={{ color: controlsIconColor }}
+            >
+              <PictureInPicture2 className="h-4 w-4" />
+            </button>
+          )}
 
-            {/* Toggle Keyboard Shortcuts Modal */}
+          {/* Toggle Keyboard Shortcuts Modal */}
+          {showHelpButton && (
             <button
               className={cn(
-                "p-1.5 rounded transition-colors hover:bg-white/10",
-                showHelpModal ? "text-white bg-neutral-900" : "text-neutral-400 hover:text-white"
+                "p-1.5 rounded transition-colors",
+                isLight ? "hover:bg-black/5" : "hover:bg-white/10",
+                showHelpModal ? (isLight ? "text-black bg-gray-100" : "text-white bg-neutral-900") : (isLight ? "text-gray-500" : "text-neutral-400")
               )}
               onClick={() => setShowHelpModal(prev => !prev)}
               aria-label="Keyboard Shortcuts"
               title="Keyboard Shortcuts (?)"
+              style={{ color: controlsIconColor }}
             >
               <HelpCircle className="h-4 w-4" />
             </button>
+          )}
 
-            {/* Toggle Fullscreen */}
-            <button 
-              className={cn("p-1.5 text-neutral-400 hover:text-white transition-colors rounded hover:bg-white/10", classNames.fullscreenButton)} 
-              onClick={toggleFullscreen} 
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-            </button>
-          </div>
+          {/* Toggle Fullscreen */}
+          <button 
+            className={cn(
+              "p-1.5 transition-colors rounded",
+              isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+              classNames.fullscreenButton
+            )} 
+            onClick={toggleFullscreen} 
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            style={{ color: controlsIconColor }}
+          >
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col group select-none transition-all duration-300",
+        isLight ? "bg-white text-gray-800" : "bg-black text-neutral-100",
+        className,
+        classNames.container
+      )}
+      style={{
+        borderRadius: isFullscreen ? '0' : `${borderRadius}px`,
+        width: '100%',
+        aspectRatio: (showOverlayControls && !isFullscreen) ? aspectRatio : undefined,
+      }}
+      ref={containerRef}
+      onMouseMove={showControlsTemporarily}
+      onMouseLeave={() => { if (isPlaying) setShowControls(false); }}
+    >
+      {/* Video Viewport Wrapper */}
+      <div 
+        className={cn(
+          "relative w-full bg-black overflow-hidden flex items-center justify-center",
+          showOverlayControls ? "h-full w-full" : "aspect-video"
+        )}
+        style={{
+          aspectRatio: showOverlayControls ? undefined : aspectRatio,
+          borderRadius: (showOverlayControls || isFullscreen) ? '0' : `${borderRadius}px ${borderRadius}px 0 0`,
+        }}
+      >
+        <video
+          ref={videoRef}
+          className={cn("w-full h-full object-cover cursor-pointer", classNames.video)}
+          poster={poster}
+          onClick={togglePlay}
+          onDoubleClick={toggleFullscreen}
+          playsInline
+        />
+
+        {/* Ripple Feedback Animation for Seek (-5s / +5s) */}
+        {showSeekRipple && seekRipple && (
+          <div className={cn(
+            "absolute top-1/2 -translate-y-1/2 flex items-center justify-center p-6 bg-black/60 rounded-full text-white backdrop-blur border border-white/20 animate-in fade-in zoom-in-75 duration-200 pointer-events-none z-30",
+            seekRipple.type === 'rewind' ? "left-12" : "right-12",
+            classNames.seekRipple
+          )}>
+            {seekRipple.type === 'rewind' ? (
+              <div className="flex flex-col items-center gap-1">
+                <RotateCcw className="h-8 w-8 animate-spin" />
+                <span className="font-mono text-xs font-bold">-5s</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <RotateCw className="h-8 w-8 animate-spin" />
+                <span className="font-mono text-xs font-bold">+5s</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Play Overlay (shown when paused) */}
+        {showPlayOverlay && !isPlaying && (
+          <div 
+            className={cn(
+              "absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer transition-opacity duration-300 z-10",
+              classNames.playOverlay
+            )}
+            onClick={togglePlay}
+          >
+            <button className={cn("rounded-full bg-white p-5 text-black transition-transform duration-200 hover:scale-110 active:scale-95 shadow-2xl border border-white/40", classNames.playButton)}>
+              <Play className="h-7 w-7 fill-current translate-x-0.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Buffering Spinner Overlay */}
+        {isBuffering && isPlaying && (
+          <div className={cn("absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none z-10", classNames.bufferingOverlay)}>
+            <div className="h-10 w-10 rounded-full border-2 border-neutral-700 border-t-white animate-spin" />
+          </div>
+        )}
+
+        {/* Diagnostics Overlay */}
+        {showDiagnostics && (
+          <div className={cn(
+            "absolute top-4 left-4 border rounded-lg p-4 w-64 text-[10px] font-mono z-20 space-y-1.5 pointer-events-none shadow-2xl backdrop-blur",
+            isLight ? "bg-white/95 border-gray-200 text-gray-800" : "bg-neutral-950/90 border-neutral-800 text-neutral-300",
+            classNames.diagnosticsPanel
+          )}>
+            <div className={cn("font-bold border-b pb-1.5 mb-2 flex items-center justify-between", isLight ? "text-gray-900 border-gray-200" : "text-white border-neutral-800")}>
+              <span className="flex items-center gap-1.5">
+                <Activity className={cn("h-3.5 w-3.5", isLight ? "text-black" : "text-white")} /> STREAM TELEMETRY
+              </span>
+              <span className="text-[9px] text-zinc-500 font-normal">REAL-TIME</span>
+            </div>
+            <div className={cn("flex justify-between border-b pb-1", isLight ? "border-gray-100" : "border-neutral-900")}>
+              <span>Resolution</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.resolution}</span>
+            </div>
+            <div className={cn("flex justify-between border-b pb-1", isLight ? "border-gray-100" : "border-neutral-900")}>
+              <span>Bitrate</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.bitrate} Kbps</span>
+            </div>
+            <div className={cn("flex justify-between border-b pb-1", isLight ? "border-gray-100" : "border-neutral-900")}>
+              <span>Buffer Occupancy</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.bufferLength}s</span>
+            </div>
+            <div className={cn("flex justify-between border-b pb-1", isLight ? "border-gray-100" : "border-neutral-900")}>
+              <span>Dropped Frames</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.droppedFrames}</span>
+            </div>
+            <div className={cn("flex justify-between border-b pb-1", isLight ? "border-gray-100" : "border-neutral-900")}>
+              <span>Segment Latency</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.latency}ms</span>
+            </div>
+            <div className="flex justify-between">
+              <span>ABR Level</span><span className={cn("font-semibold", isLight ? "text-black" : "text-white")}>{diagnostics.level + 1}/{diagnostics.totalLevels}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay Controls */}
+        {showOverlayControls && controlBarContent}
+      </div>
+
+      {/* Below Controls */}
+      {!showOverlayControls && controlBarContent}
 
       {/* Keyboard Shortcuts Help Modal Overlay */}
       {showHelpModal && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-150">
-          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 text-xs font-mono shadow-2xl relative">
-            <div className="flex justify-between items-center border-b border-neutral-900 pb-3">
-              <span className="font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-white" /> KEYBOARD SHORTCUTS
+          <div className={cn(
+            "border rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 text-xs font-mono shadow-2xl relative",
+            isLight ? "bg-white border-gray-250 text-gray-800" : "bg-neutral-950 border-neutral-800 text-neutral-300",
+            classNames.helpModal
+          )}>
+            <div className={cn("flex justify-between items-center border-b pb-3", isLight ? "border-gray-150" : "border-neutral-900")}>
+              <span className={cn("font-bold uppercase tracking-wider flex items-center gap-2", isLight ? "text-gray-900" : "text-white")}>
+                <HelpCircle className="h-4 w-4" /> KEYBOARD SHORTCUTS
               </span>
               <button 
                 onClick={() => setShowHelpModal(false)}
-                className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+                className={cn(
+                  "p-1 rounded transition-colors",
+                  isLight ? "text-gray-500 hover:text-black hover:bg-gray-100" : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                )}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-y-2 text-[10px] text-neutral-300">
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">Space / K</kbd></div>
+            <div className="grid grid-cols-2 gap-y-2 text-[10px]">
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>Space / K</kbd></div>
               <div>Play / Pause</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">F</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>F</kbd></div>
               <div>Toggle Fullscreen</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">M</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>M</kbd></div>
               <div>Mute / Unmute Audio</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">P</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>P</kbd></div>
               <div>Picture-in-Picture</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">D</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>D</kbd></div>
               <div>Stream Telemetry</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">← / →</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>← / →</kbd></div>
               <div>Seek -5s / +5s</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">↑ / ↓</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>↑ / ↓</kbd></div>
               <div>Volume +10% / -10%</div>
 
-              <div className="flex items-center gap-2"><kbd className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-white font-bold">0 - 9</kbd></div>
+              <div className="flex items-center gap-2"><kbd className={cn("px-1.5 py-0.5 rounded border font-bold", isLight ? "bg-gray-100 border-gray-250 text-black" : "bg-neutral-900 border-neutral-800 text-white")}>0 - 9</kbd></div>
               <div>Seek 0% - 90%</div>
             </div>
 
-            <div className="text-[9px] text-neutral-500 text-center pt-2 border-t border-neutral-900 uppercase">
+            <div className={cn("text-[9px] text-center pt-2 border-t uppercase", isLight ? "border-gray-150 text-gray-400" : "border-neutral-900 text-neutral-500")}>
               Press <kbd className="px-1 bg-neutral-900 border border-neutral-850 rounded">?</kbd> or <kbd className="px-1 bg-neutral-900 border border-neutral-850 rounded">Esc</kbd> to close
             </div>
           </div>
