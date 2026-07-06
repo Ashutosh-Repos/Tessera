@@ -123,6 +123,10 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
 
+  // Video time tracking for duration decrease/progress bar in video mode
+  const [previewTime, setPreviewTime] = useState<number>(0);
+  const [previewDuration, setPreviewDuration] = useState<number>(0);
+
   const hoverTimerRef = useRef<number>(0);
   const flipbookIntervalRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -178,6 +182,33 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     };
   }, [previewVideoUrl]);
 
+  // Handle timeupdate and loadedmetadata for preview video to calculate descending timer & progress
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !previewVideoUrl) return;
+
+    const handleTimeUpdate = () => {
+      setPreviewTime(video.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setPreviewDuration(video.duration);
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    // Initial check
+    if (video.duration) {
+      setPreviewDuration(video.duration);
+    }
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [previewVideoUrl, isVideoPlaying]);
+
   // Unmount Timer Cleanup
   useEffect(() => {
     return () => {
@@ -189,6 +220,14 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   // Theme-derived colors
   const isLight = theme === 'light';
   const titleLineClamp = titleLines === 1 ? 'line-clamp-1' : titleLines === 3 ? 'line-clamp-3' : 'line-clamp-2';
+
+  // Descending time math for muted video preview mode
+  const totalDurationSec = previewDuration || parseDurationToSeconds(duration);
+  const remainingSeconds = Math.max(0, totalDurationSec - previewTime);
+  const isVideoPlayingMode = !!(previewVideoUrl && isVideoPlaying);
+  const durationText = isVideoPlayingMode 
+    ? `-${formatSeconds(remainingSeconds)}` 
+    : duration;
 
   // 2. Handle Mouse Enter with configurable delay
   const handleMouseEnter = () => {
@@ -387,16 +426,24 @@ export const VideoTile: React.FC<VideoTileProps> = ({
             classNames.duration
           )}>
             <Clock className="h-2.5 w-2.5 text-neutral-400" />
-            {duration}
+            {durationText}
           </div>
         )}
 
         {/* Hover Progress Line */}
-        {showProgressBar && isHovered && vttCues.length > 0 && (
+        {showProgressBar && isHovered && (vttCues.length > 0 || isVideoPlayingMode) && (
           <div className={cn("absolute bottom-0 inset-x-0 h-1 bg-neutral-800/80", classNames.progressBar)}>
             <div 
-              className={cn("h-full bg-white transition-all duration-300", classNames.progressFill)} 
-              style={{ width: `${hoverProgressPct}%` }}
+              className={cn(
+                "h-full transition-all duration-150", 
+                isVideoPlayingMode ? "bg-red-500" : "bg-white",
+                classNames.progressFill
+              )} 
+              style={{ 
+                width: `${isVideoPlayingMode 
+                  ? (previewDuration > 0 ? (previewTime / previewDuration) * 100 : 0) 
+                  : hoverProgressPct}%` 
+              }}
             />
           </div>
         )}
@@ -472,4 +519,29 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       </div>
     </div>
   );
+};
+
+// Duration parsing and formatting helper functions
+const parseDurationToSeconds = (durStr: string): number => {
+  if (!durStr) return 0;
+  const parts = durStr.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return 0;
+};
+
+const formatSeconds = (totalSec: number): string => {
+  if (!isFinite(totalSec) || isNaN(totalSec)) return '0:00';
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = Math.floor(totalSec % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
 };

@@ -151,7 +151,7 @@ export default function Home() {
   const [playerShowSeekRipple, setPlayerShowSeekRipple] = useState<boolean>(true);
 
   // VideoTile states
-  const [tileTitle, setTileTitle] = useState<string>("Hyper-Scalable Transcoding Fleets");
+  const [tileTitle, setTileTitle] = useState<string>("Building Hyper-Scalable Distributed Transcoding Fleets with Go & NATS JetStream");
   const [tileChannel, setTileChannel] = useState<string>("DeepMind Systems");
   const [tileBadge, setTileBadge] = useState<string>("4K");
   const [tilePreviewMode, setTilePreviewMode] = useState<"sprite" | "video">("sprite");
@@ -483,10 +483,22 @@ function App() {
       views="482K views"
       uploadedAt="2 days ago"
       duration="14:20"
-      posterUrl={createDemoPosterDataUrl('${tileTitle}')}
-      ${tilePreviewMode === "sprite" ? 'spriteVttUrl="http://localhost:8080/storage/jobs/partition_0/job_123/sprite/sprite.vtt"' : 'previewVideoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"'}
+      posterUrl="/demo/poster.jpg"
+      ${tilePreviewMode === "sprite" ? 'spriteUrl="/demo/sprite.jpg"\n      spriteVttUrl="/demo/sprite.vtt"' : 'previewVideoUrl="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"'}
       badge="${tileBadge}"
       isVerified={true}
+      hoverScale={${tileHoverScale}}
+      hoverDelayMs={${tileHoverDelay}}
+      flipbookIntervalMs={${tileFlipbookInterval}}
+      borderRadius={${tileBorderRadius}}
+      aspectRatio="${tileAspectRatio}"
+      titleLines={${tileTitleLines}}
+      theme="${tileTheme}"
+      showBadge={${tileShowBadge}}
+      showDuration={${tileShowDuration}}
+      showProgressBar={${tileShowProgressBar}}
+      showAvatar={${tileShowAvatar}}
+      showVerified={${tileShowVerified}}
       onClick={() => console.log("Video tile clicked")}
     />
   );

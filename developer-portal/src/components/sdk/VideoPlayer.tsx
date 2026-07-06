@@ -586,6 +586,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedPct = duration > 0 ? (buffered / duration) * 100 : 0;
   const isLight = theme === 'light';
+  const resolvedControlsBg = controlsBg === '#000000' && isLight ? '#ffffff' : controlsBg;
+  const resolvedIconColor = controlsIconColor === '#ffffff' && isLight ? '#27272a' : controlsIconColor; // zinc-800
+  const resolvedAccentColor = accentColor === '#ffffff' && isLight ? '#000000' : accentColor;
+
   const showOverlayControls = isFullscreen || controlsPosition === "overlay";
   const opacityHex = Math.round(controlsBgOpacity * 2.55).toString(16).padStart(2, '0');
 
@@ -601,9 +605,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
       style={{
         background: showOverlayControls
-          ? `linear-gradient(to top, ${controlsBg}${opacityHex} 0%, ${controlsBg}${opacityHex} 75%, transparent 100%)`
-          : undefined,
-        color: controlsIconColor
+          ? `linear-gradient(to top, ${resolvedControlsBg}${opacityHex} 0%, ${resolvedControlsBg}${opacityHex} 75%, transparent 100%)`
+          : resolvedControlsBg,
+        color: resolvedIconColor
       }}
     >
       {/* Progress Bar Container with Preview Sprite Scrubbing Tooltip */}
@@ -677,12 +681,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <button 
             className={cn(
               "p-1.5 transition-colors rounded",
-              isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+              isLight ? "hover:bg-black/5" : "hover:bg-white/10",
               classNames.controlButtonLeft
             )}
             onClick={togglePlay} 
             aria-label={isPlaying ? 'Pause' : 'Play'}
-            style={{ color: controlsIconColor }}
+            style={{ color: resolvedIconColor }}
           >
             {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
           </button>
@@ -692,12 +696,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <button 
               className={cn(
                 "p-1.5 transition-colors rounded",
-                isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+                isLight ? "hover:bg-black/5" : "hover:bg-white/10",
                 classNames.controlButtonLeft
               )}
               onClick={toggleMute} 
               aria-label={isMuted ? 'Unmute' : 'Mute'}
-              style={{ color: controlsIconColor }}
+              style={{ color: resolvedIconColor }}
             >
               {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
@@ -708,7 +712,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   "w-0 opacity-0 group-hover/volume:w-16 group-hover/volume:opacity-100 transition-all duration-200 h-1 bg-neutral-800 rounded-full appearance-none cursor-pointer",
                   classNames.volumeSlider
                 )}
-                style={{ accentColor }}
+                style={{ accentColor: resolvedAccentColor }}
                 min="0"
                 max="1"
                 step="0.05"
@@ -739,11 +743,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <button
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors",
-                  isLight ? "border-gray-300 text-gray-600 hover:text-black hover:bg-gray-150" : "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900",
-                  showSpeedMenu && (isLight ? "text-black border-gray-400 bg-gray-100" : "text-white border-neutral-700 bg-neutral-900"),
+                  isLight ? "border-gray-300 hover:bg-gray-150" : "border-neutral-800 hover:bg-neutral-900",
+                  showSpeedMenu && (isLight ? "border-gray-400 bg-gray-100" : "border-neutral-700 bg-neutral-900"),
                   classNames.speedSelectorButton
                 )}
-                style={{ color: controlsIconColor }}
+                style={{ color: resolvedIconColor }}
                 onClick={() => { setShowSpeedMenu(prev => !prev); setShowQualityMenu(false); }}
                 aria-label="Playback speed"
               >
@@ -753,7 +757,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               {showSpeedMenu && (
                 <div className={cn(
                   "absolute bottom-8 right-0 border rounded p-1 shadow-2xl w-24 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
-                  isLight ? "bg-white border-gray-250" : "bg-neutral-950 border-neutral-800",
+                  isLight ? "bg-white border-gray-200" : "bg-neutral-950 border-neutral-800",
                   classNames.speedSelectorMenu
                 )}>
                   {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
@@ -781,11 +785,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <button
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors",
-                  isLight ? "border-gray-300 text-gray-600 hover:text-black hover:bg-gray-150" : "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900",
-                  showQualityMenu && (isLight ? "text-black border-gray-400 bg-gray-100" : "text-white border-neutral-700 bg-neutral-900"),
+                  isLight ? "border-gray-300 hover:bg-gray-150" : "border-neutral-800 hover:bg-neutral-900",
+                  showQualityMenu && (isLight ? "border-gray-400 bg-gray-100" : "border-neutral-700 bg-neutral-900"),
                   classNames.qualitySelectorButton
                 )}
-                style={{ color: controlsIconColor }}
+                style={{ color: resolvedIconColor }}
                 onClick={() => { setShowQualityMenu(prev => !prev); setShowSpeedMenu(false); }}
                 aria-label="Quality"
               >
@@ -795,7 +799,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               {showQualityMenu && (
                 <div className={cn(
                   "absolute bottom-8 right-0 border rounded p-1 shadow-2xl w-28 flex flex-col gap-0.5 z-40 animate-in fade-in duration-100",
-                  isLight ? "bg-white border-gray-250" : "bg-neutral-950 border-neutral-800",
+                  isLight ? "bg-white border-gray-200" : "bg-neutral-950 border-neutral-800",
                   classNames.qualitySelectorMenu
                 )}>
                   <button
@@ -837,7 +841,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               )}
               onClick={() => setShowDiagnostics(prev => !prev)}
               aria-label="Toggle diagnostics"
-              style={{ color: controlsIconColor }}
+              style={{ color: resolvedIconColor }}
             >
               <Activity className="h-4 w-4" />
             </button>
@@ -848,13 +852,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <button 
               className={cn(
                 "p-1.5 transition-colors rounded",
-                isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+                isLight ? "hover:bg-black/5" : "hover:bg-white/10",
                 isPip && (isLight ? "text-black bg-gray-100" : "text-white bg-neutral-900"),
                 classNames.pipButton
               )} 
               onClick={togglePip} 
               aria-label="Picture in Picture"
-              style={{ color: controlsIconColor }}
+              style={{ color: resolvedIconColor }}
             >
               <PictureInPicture2 className="h-4 w-4" />
             </button>
@@ -871,7 +875,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onClick={() => setShowHelpModal(prev => !prev)}
               aria-label="Keyboard Shortcuts"
               title="Keyboard Shortcuts (?)"
-              style={{ color: controlsIconColor }}
+              style={{ color: resolvedIconColor }}
             >
               <HelpCircle className="h-4 w-4" />
             </button>
@@ -881,12 +885,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <button 
             className={cn(
               "p-1.5 transition-colors rounded",
-              isLight ? "text-gray-600 hover:text-black hover:bg-black/5" : "text-neutral-400 hover:text-white hover:bg-white/10",
+              isLight ? "hover:bg-black/5" : "hover:bg-white/10",
               classNames.fullscreenButton
             )} 
             onClick={toggleFullscreen} 
             aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            style={{ color: controlsIconColor }}
+            style={{ color: resolvedIconColor }}
           >
             {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
@@ -898,8 +902,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div
       className={cn(
-        "relative flex flex-col group select-none transition-all duration-300",
-        isLight ? "bg-white text-gray-800" : "bg-black text-neutral-100",
+        "relative flex flex-col group select-none transition-all duration-300 border overflow-hidden shadow-2xl",
+        isLight ? "bg-white text-gray-800 border-gray-200" : "bg-black text-neutral-100 border-neutral-800",
         className,
         classNames.container
       )}
