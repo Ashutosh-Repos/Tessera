@@ -881,7 +881,7 @@ function App() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : selectedComp === "player" ? (
                 <div className="w-full max-w-md flex flex-col gap-6 animate-in fade-in duration-200">
                   {/* Video player container */}
                   <div 
@@ -1194,6 +1194,51 @@ function App() {
                       </div>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="w-full max-w-sm flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className="group relative flex flex-col gap-3 rounded-xl overflow-hidden cursor-pointer select-none transition-all duration-300 hover:scale-[1.02] bg-zinc-950 border border-zinc-900 p-3 shadow-2xl">
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-black border border-zinc-800/80 shadow-md">
+                      <img 
+                        src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80" 
+                        alt={tileTitle}
+                        className="w-full h-full object-cover"
+                      />
+                      {tileBadge && (
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-black/70 text-white backdrop-blur border border-white/10">
+                          {tileBadge}
+                        </div>
+                      )}
+                      <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-black/80 text-white backdrop-blur border border-white/10 flex items-center gap-1">
+                        14:20
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 px-0.5">
+                      <div className="h-8 w-8 rounded-full bg-zinc-900 border border-zinc-800 shrink-0 flex items-center justify-center text-[10px] font-mono font-bold text-white uppercase">
+                        {tileChannel.slice(0, 2)}
+                      </div>
+
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <h3 className="text-xs font-semibold text-zinc-100 line-clamp-2 leading-snug">
+                          {tileTitle}
+                        </h3>
+
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-400">
+                          <span className="truncate">{tileChannel}</span>
+                          <Check className="h-3 w-3 text-zinc-400 shrink-0" />
+                        </div>
+
+                        <div className="text-[9px] font-mono text-zinc-500">
+                          482K views • 2 days ago
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-mono text-zinc-500 text-center uppercase tracking-wider">
+                    HOVER PREVIEW MODE: {tilePreviewMode.toUpperCase()}
+                  </span>
                 </div>
               )}
             </div>
