@@ -112,7 +112,7 @@ export default function Home() {
   // ==========================================
   // 2. DYNAMIC COMPONENT CUSTOMIZER
   // ==========================================
-  const [selectedComp, setSelectedComp] = useState<"uploader" | "player">("uploader");
+  const [selectedComp, setSelectedComp] = useState<"uploader" | "player" | "tile">("uploader");
   
   // Customizer styling props state
   const [uploaderTitle, setUploaderTitle] = useState<string>("Ingest Video Segment");
@@ -135,6 +135,12 @@ export default function Home() {
   const [progressBarHeight, setProgressBarHeight] = useState<number>(3); // px
   const [playerBorderRadius, setPlayerBorderRadius] = useState<number>(8); // px
   const [showControlsOnHover, setShowControlsOnHover] = useState<boolean>(true);
+
+  // VideoTile states
+  const [tileTitle, setTileTitle] = useState<string>("Hyper-Scalable Transcoding Fleets");
+  const [tileChannel, setTileChannel] = useState<string>("DeepMind Systems");
+  const [tileBadge, setTileBadge] = useState<string>("4K");
+  const [tilePreviewMode, setTilePreviewMode] = useState<"sprite" | "video">("sprite");
 
   // Mock interactive simulation actions
   const [mockFileName, setMockFileName] = useState<string>("");
@@ -350,7 +356,7 @@ export default function Home() {
   };
 
   const generatedJSXCode = selectedComp === "uploader" 
-    ? `import { VideoUploader } from '@transcoder/ui-sdk';
+    ? `import { VideoUploader } from '@distributed-transcoder/ui-sdk';
 
 function App() {
   return (
@@ -374,27 +380,39 @@ function App() {
     />
   );
 }`
-    : `import { VideoPlayer } from '@transcoder/ui-sdk';
+    : selectedComp === "player"
+    ? `import { VideoPlayer } from '@distributed-transcoder/ui-sdk';
 
 function App() {
   return (
     <VideoPlayer 
-      src="${hlsSourceUrl}"
+      hlsUrl="${hlsSourceUrl}"
+      spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"
+      spriteConfig={{ width: 160, height: 90, cols: 5, intervalSec: 5 }}
       aspectRatio="${playerAspectRatio}"
       accentColor="${playerAccent}"
       autoPlay={false}
       borderRadius={${playerBorderRadius}}
       controlsPosition="${controlsMode}"${controlsMode === "overlay" ? `\n      showControlsOnHover={${showControlsOnHover}}` : ""}
-      controlsStyle={{
-        backgroundColor: "${controlsBg}",
-        backgroundOpacity: ${controlsBgOpacity / 100},
-        iconColor: "${controlsIconColor}",
-      }}
-      progressBar={{
-        color: "${progressBarColor}",
-        height: ${progressBarHeight},
-      }}
       onPlay={() => console.log("HLS stream playback started")}
+    />
+  );
+}`
+    : `import { VideoTile } from '@distributed-transcoder/ui-sdk';
+
+function App() {
+  return (
+    <VideoTile 
+      title="${tileTitle}"
+      channelName="${tileChannel}"
+      views="482K views"
+      uploadedAt="2 days ago"
+      duration="14:20"
+      posterUrl="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
+      ${tilePreviewMode === "sprite" ? 'spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"' : 'previewVideoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"'}
+      badge="${tileBadge}"
+      isVerified={true}
+      onClick={() => console.log("Video tile clicked")}
     />
   );
 }`;
@@ -511,15 +529,21 @@ function App() {
               <div className="flex gap-2 p-1 bg-zinc-950 rounded border border-zinc-900">
                 <button 
                   onClick={() => setSelectedComp("uploader")}
-                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComp === "uploader" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                  className={`flex-1 py-2 font-mono text-[10px] font-bold rounded transition-colors ${selectedComp === "uploader" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
                 >
                   VIDEO_UPLOADER
                 </button>
                 <button 
                   onClick={() => setSelectedComp("player")}
-                  className={`flex-1 py-2 font-mono text-xs font-bold rounded transition-colors ${selectedComp === "player" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                  className={`flex-1 py-2 font-mono text-[10px] font-bold rounded transition-colors ${selectedComp === "player" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
                 >
                   VIDEO_PLAYER
+                </button>
+                <button 
+                  onClick={() => setSelectedComp("tile")}
+                  className={`flex-1 py-2 font-mono text-[10px] font-bold rounded transition-colors ${selectedComp === "tile" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                >
+                  VIDEO_TILE
                 </button>
               </div>
 
