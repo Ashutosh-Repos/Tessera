@@ -76,7 +76,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   autoplay = false,
   spriteUrl,
   spriteVttUrl,
-  spriteConfig = { width: 160, height: 90, cols: 5, intervalSec: 5 },
+  spriteConfig = { width: 160, height: 90, cols: 10, intervalSec: 5 },
   className,
   classNames = {}
 }) => {
@@ -498,7 +498,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (spriteUrl && !spriteUrl.endsWith('.vtt')) {
       const interval = spriteConfig.intervalSec || 5;
       const frameIdx = Math.floor(hoverState.time / interval);
-      const cols = spriteConfig.cols || 5;
+      const cols = spriteConfig.cols || 10;
       const row = Math.floor(frameIdx / cols);
       const col = frameIdx % cols;
       const x = col * spriteConfig.width;

@@ -66,3 +66,40 @@ function parseVTTTimestamp(ts: string): number {
   }
   return seconds;
 }
+
+/**
+ * Generates SpriteCue array matching Go backend algorithm (160x90 cell, 10 columns per row)
+ * Matches internal/coordinator/assets.go generateWebVTTFile
+ */
+export function generateSpriteCuesForDuration(
+  durationSec: number, 
+  totalFrames: number = 20, 
+  spriteImageUrl: string = 'sprite.jpg'
+): SpriteCue[] {
+  const cues: SpriteCue[] = [];
+  const cellW = 160;
+  const cellH = 90;
+  const cols = 10;
+  const interval = durationSec > 0 && totalFrames > 0 ? durationSec / totalFrames : 5.0;
+
+  for (let i = 0; i < totalFrames; i++) {
+    const startTime = i * interval;
+    const endTime = Math.min((i + 1) * interval, durationSec);
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = col * cellW;
+    const y = row * cellH;
+
+    cues.push({
+      startTime,
+      endTime,
+      url: spriteImageUrl,
+      x,
+      y,
+      w: cellW,
+      h: cellH,
+    });
+  }
+
+  return cues;
+}
