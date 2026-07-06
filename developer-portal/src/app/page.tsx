@@ -442,7 +442,7 @@ function App() {
       views="482K views"
       uploadedAt="2 days ago"
       duration="14:20"
-      posterUrl="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
+      posterUrl={createDemoPosterDataUrl('${tileTitle}')}
       ${tilePreviewMode === "sprite" ? 'spriteVttUrl="http://localhost:8080/storage/jobs/partition_0/job_123/sprite/sprite.vtt"' : 'previewVideoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"'}
       badge="${tileBadge}"
       isVerified={true}
