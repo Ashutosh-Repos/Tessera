@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "ui-sdk": ["./src/components/sdk/index.ts"]
     }
   },
   "include": [
