@@ -7,7 +7,7 @@ import {
   Volume2 
 } from 'lucide-react';
 import { cn } from './utils';
-import { parseVTTCues, type SpriteCue } from './vtt';
+import { parseVTTCues, createDemoPosterDataUrl, type SpriteCue } from './vtt';
 
 export interface VideoTileProps {
   id?: string;
@@ -32,11 +32,11 @@ export interface VideoTileProps {
 }
 
 const DEFAULT_PREVIEW_FRAMES = [
-  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80'
+  createDemoPosterDataUrl('Preview Keyframe 1 (0:00)', 210),
+  createDemoPosterDataUrl('Preview Keyframe 2 (0:03)', 250),
+  createDemoPosterDataUrl('Preview Keyframe 3 (0:06)', 290),
+  createDemoPosterDataUrl('Preview Keyframe 4 (0:09)', 330),
+  createDemoPosterDataUrl('Preview Keyframe 5 (0:12)', 30),
 ];
 
 export const VideoTile: React.FC<VideoTileProps> = ({
@@ -60,7 +60,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   className,
 }) => {
   // Resolve Backend URLs if gatewayUrl and jobId are passed
-  const posterUrl = initialPosterUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/poster.jpg` : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80');
+  const posterUrl = initialPosterUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/poster.jpg` : createDemoPosterDataUrl(title));
   const spriteVttUrl = initialSpriteVttUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/sprite.vtt` : undefined);
   const previewVideoUrl = initialPreviewVideoUrl || (gatewayUrl && jobId ? `${gatewayUrl}/storage/jobs/${jobId}/preview.mp4` : undefined);
   const [isHovered, setIsHovered] = useState(false);

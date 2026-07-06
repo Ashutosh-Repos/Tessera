@@ -7,5 +7,5 @@ export type { VideoUploaderClassNames } from './components/VideoUploader';
 export { VideoTile } from './components/VideoTile';
 export type { VideoTileProps } from './components/VideoTile';
 
-export { parseVTTCues } from './lib/vtt';
+export { parseVTTCues, createDemoSpriteDataUrl } from './lib/vtt';
 export type { SpriteCue } from './lib/vtt';

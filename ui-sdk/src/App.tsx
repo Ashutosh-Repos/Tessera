@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { VideoUploader } from './components/VideoUploader';
 import { VideoPlayer } from './components/VideoPlayer';
 import { VideoTile } from './components/VideoTile';
+import { createDemoSpriteDataUrl, createDemoPosterDataUrl, createDemoAvatarDataUrl } from './lib/vtt';
 
 function App() {
   const GATEWAY_URL = 'http://localhost:8080';
   const DEMO_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+  const demoSpriteUrl = useMemo(() => createDemoSpriteDataUrl(), []);
   
   const [hlsUrl, setHlsUrl] = useState<string>(DEMO_HLS_URL);
 
@@ -14,12 +16,12 @@ function App() {
       id: 'tile-1',
       title: 'Building Hyper-Scalable Distributed Transcoding Fleets with Go & NATS JetStream',
       channelName: 'DeepMind Systems',
-      channelAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+      channelAvatar: createDemoAvatarDataUrl('DS', 210),
       views: '482K views',
       uploadedAt: '2 days ago',
       duration: '14:20',
-      posterUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-      spriteUrl: 'https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg',
+      posterUrl: createDemoPosterDataUrl('Distributed Transcoding Fleets', 210),
+      spriteUrl: demoSpriteUrl,
       badge: '4K',
       isVerified: true,
     },
@@ -27,11 +29,11 @@ function App() {
       id: 'tile-2',
       title: 'Low-Latency HLS & Consistent Hash Partitioning Deep Dive',
       channelName: 'Cloud Architecture Weekly',
-      channelAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
+      channelAvatar: createDemoAvatarDataUrl('CA', 270),
       views: '1.2M views',
       uploadedAt: '1 week ago',
       duration: '08:45',
-      posterUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80',
+      posterUrl: createDemoPosterDataUrl('Consistent Hash Partitioning', 270),
       previewVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
       badge: 'HD',
       isVerified: true,
@@ -40,12 +42,12 @@ function App() {
       id: 'tile-3',
       title: 'S3 Cross-Region Replication & Zero-Loss Slicing Architecture',
       channelName: 'Streaming Engineering',
-      channelAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80',
+      channelAvatar: createDemoAvatarDataUrl('SE', 330),
       views: '95K views',
       uploadedAt: '4 hours ago',
       duration: '22:10',
-      posterUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
-      spriteUrl: 'https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg',
+      posterUrl: createDemoPosterDataUrl('Zero-Loss Slicing Architecture', 330),
+      spriteUrl: demoSpriteUrl,
       badge: 'NEW',
       isVerified: false,
     }
@@ -111,8 +113,8 @@ function App() {
             
             <VideoPlayer 
               hlsUrl={hlsUrl} 
-              spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"
-              spriteConfig={{ width: 160, height: 90, cols: 5, intervalSec: 5 }}
+              spriteUrl={demoSpriteUrl}
+              spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
             />
             
             <p className="text-center text-[10px] text-neutral-500 font-mono mt-2 bg-neutral-950 py-3 rounded border border-neutral-900/60 uppercase tracking-wider">

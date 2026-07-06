@@ -27,7 +27,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import Hls from "hls.js";
-import { VideoPlayer, VideoUploader, VideoTile } from "@/components/sdk";
+import { VideoPlayer, VideoUploader, VideoTile, createDemoSpriteDataUrl, createDemoPosterDataUrl } from "@/components/sdk";
 
 export default function Home() {
   // ==========================================
@@ -231,6 +231,7 @@ export default function Home() {
 
   // Stable public adaptive test HLS stream
   const [hlsSourceUrl, setHlsSourceUrl] = useState<string>("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+  const demoSpriteUrl = React.useMemo(() => createDemoSpriteDataUrl(), []);
 
   useEffect(() => {
     if (selectedComp !== "player") {
@@ -415,11 +416,11 @@ function App() {
     ? `import { VideoPlayer } from '@distributed-transcoder/ui-sdk';
 
 function App() {
-  return (
-    <VideoPlayer 
+       <VideoPlayer 
+      gatewayUrl="http://localhost:8080"
+      jobId="job_us-east:768244ad"
       hlsUrl="${hlsSourceUrl}"
-      spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"
-      spriteConfig={{ width: 160, height: 90, cols: 5, intervalSec: 5 }}
+      spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
       aspectRatio="${playerAspectRatio}"
       accentColor="${playerAccent}"
       autoPlay={false}
@@ -434,13 +435,15 @@ function App() {
 function App() {
   return (
     <VideoTile 
+      gatewayUrl="http://localhost:8080"
+      jobId="job_us-east:768244ad"
       title="${tileTitle}"
       channelName="${tileChannel}"
       views="482K views"
       uploadedAt="2 days ago"
       duration="14:20"
       posterUrl="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe"
-      ${tilePreviewMode === "sprite" ? 'spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"' : 'previewVideoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"'}
+      ${tilePreviewMode === "sprite" ? 'spriteVttUrl="http://localhost:8080/storage/jobs/partition_0/job_123/sprite/sprite.vtt"' : 'previewVideoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"'}
       badge="${tileBadge}"
       isVerified={true}
       onClick={() => console.log("Video tile clicked")}
@@ -866,7 +869,7 @@ function App() {
                 <div className="w-full max-w-xl animate-in fade-in duration-200">
                   <VideoPlayer 
                     hlsUrl={hlsSourceUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}
-                    spriteUrl="https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg"
+                    spriteUrl={demoSpriteUrl}
                     spriteConfig={{ width: 160, height: 90, cols: 10, intervalSec: 5 }}
                   />
                 </div>
@@ -879,9 +882,9 @@ function App() {
                     views="482K views"
                     uploadedAt="2 days ago"
                     duration="14:20"
-                    posterUrl="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"
+                    posterUrl={createDemoPosterDataUrl(tileTitle)}
                     previewVideoUrl={tilePreviewMode === "video" ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" : undefined}
-                    spriteUrl={tilePreviewMode === "sprite" ? "https://raw.githubusercontent.com/vtt-demos/sprites/main/sample-sprite.jpg" : undefined}
+                    spriteUrl={tilePreviewMode === "sprite" ? demoSpriteUrl : undefined}
                     isVerified={true}
                   />
                 </div>
