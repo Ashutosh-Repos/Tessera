@@ -4,5 +4,8 @@ export type { VideoPlayerProps, VideoPlayerClassNames, SpriteConfig } from './co
 export { VideoUploader } from './components/VideoUploader';
 export type { VideoUploaderClassNames } from './components/VideoUploader';
 
+export { VideoTile } from './components/VideoTile';
+export type { VideoTileProps } from './components/VideoTile';
+
 export { parseVTTCues } from './lib/vtt';
 export type { SpriteCue } from './lib/vtt';
