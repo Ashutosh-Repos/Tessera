@@ -1,9 +1,27 @@
-# Exclude frontend portals, admin console, and UI SDK from GitHub language statistics
-# This ensures that GitHub correctly displays "Go" as the primary language of the repository.
+# Exclude frontend portals, admin console, and UI SDK from GitHub language statistics.
+# This ensures that GitHub ignores these TypeScript/React directories and correctly
+# displays "Go" as the primary language of the repository.
 
+developer-portal/ linguist-vendored
+developer-portal/* linguist-vendored
 developer-portal/** linguist-vendored
+
+admin-console/ linguist-vendored
+admin-console/* linguist-vendored
 admin-console/** linguist-vendored
+
+ui-sdk/ linguist-vendored
+ui-sdk/* linguist-vendored
 ui-sdk/** linguist-vendored
+
+"next version/" linguist-vendored
+"next version/*" linguist-vendored
 "next version/**" linguist-vendored
+
+docs/ linguist-documentation
+docs/* linguist-documentation
 docs/** linguist-documentation
+
+docs-theory/ linguist-documentation
+docs-theory/* linguist-documentation
 docs-theory/** linguist-documentation
