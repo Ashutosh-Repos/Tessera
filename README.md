@@ -5,25 +5,25 @@ Tessera is a cloud-agnostic, multi-region video ingestion and distributed transc
 
 ---
 
-## ⚠️ The Real-World Problems
+## ⚠️ The Real-World Problem: Adding Video Is Hard & Expensive
 
-Processing high-volume video uploads globally for millions of users introduces severe physical and financial challenges:
+Whether you are building a streaming app (like Netflix), a short-form video feed (like TikTok), a course platform, or just adding video uploads to an existing SaaS product, you run into three major roadblocks:
 
-1. **💸 Astronomical Cloud Network Bills**: Transferring raw, multi-gigabyte video uploads across regional data centers or centralizing them in a single global cloud bucket incurs massive network ingress and egress costs.
-2. **🔌 Gateways Crash During Peak Uploads**: When thousands of users upload high-resolution video clips simultaneously (such as during a live event or breaking news), ingress API gateways saturate their network ports, drop connections, and crash.
-3. **💰 Wasted Compute Costs (Duplicate Work)**: Without strict distributed coordination, worker nodes in a cluster can end up transcoding the same video segments multiple times due to node failovers or split-brain states, driving up server bills.
-4. **⏳ Hours of Delay to Begin Transcoding**: Traditional systems must download a multi-gigabyte source video to a coordinator's local disk to analyze its structure and index metadata before they can slice it, introducing massive disk IO bottlenecks and starting delays.
+1. **Buffering & Slow Loads**: Standard raw video files (like `.mp4`) do not stream well on web or mobile. You need to convert them into adaptive bitrate formats (HLS/DASH) so the quality adjusts dynamically depending on the user's connection.
+2. **Exorbitant Billing (AWS Elemental Lock-in)**: Commercial transcoding APIs (like AWS MediaConvert or Bitmovin) charge per-minute fees that scale out of control as your user base and video volume grow.
+3. **The "Single-Server" Crash**: Building a DIY transcoder script using FFmpeg on a single server works for a few files. But if 50 users upload files at the same time, the server runs out of CPU/memory, files get corrupted, and your application crashes. 
+4. **Complex Cluster Synchronization**: Trying to split a video into segments to process them in parallel across a group of servers requires writing complex distributed lock managers, leading to race conditions and duplicate transcode bills.
 
 ---
 
-## ✅ What Is Solved
+## ✅ How Tessera Solves It
 
-Tessera solves these real-world scaling and cost issues through an optimized, share-nothing regional model:
+Tessera is an **open-source, self-hosted alternative** to AWS MediaConvert. It lets you run a highly available, distributed video pipeline on your own hardware:
 
-1. **Zero Global WAN Payload Traffic**: Videos are ingested and processed entirely within their local Point of Presence (PoP) region. Only the lightweight, kilobyte-sized manifest playlists (`.m3u8` / `.mpd`) are replicated globally, saving massive network bandwidth.
-2. **Line-Rate Upload Resilience**: The API Gateway only handles session orchestration and lightweight metadata. Clients upload video parts directly to scalable object storage (like AWS S3 or Ceph), preventing gateway chokepoints.
-3. **Guaranteed Zero-Duplication Compute**: A consistent hash ring backed by etcd consensus leases and atomic epoch fencing guarantees that exactly one coordinator node coordinates task distribution, ensuring 100% compute cost efficiency.
-4. **Sub-Second Slicing Initiation**: Instead of downloading raw files, the engine queries the exact 1MB index byte offsets (`moov`/`mdat` atoms) over HTTP range requests, slicing 50GB source videos into parallel transcoding chunks in **less than 500ms**.
+1. **Instant Adaptive Playback (HLS/DASH)**: Automatically processes raw video uploads into responsive HLS streams with multi-quality resolution playlists (1080p, 720p, 480p) ready for standard players like `hls.js`.
+2. **Zero Per-Minute Licensing Fees**: Run the transcoder on your own VMs (AWS EC2, GCP, Oracle Cloud, or bare metal). You only pay for your raw compute resources—no commercial transcoding markups.
+3. **Parallel Sub-Second Slicing**: Instead of taking hours to transcode a long video, Tessera slices files into parallel chunk tasks in **under 500ms** by reading raw header indices directly over S3 HTTP range requests.
+4. **Infinite Horizontal Scale**: Compute is distributed across an elastic worker fleet. Slicing coordinators organize tasks on a consensus hash ring, ensuring that workers never step on each other or double-process the same file segments.
 
 ---
 
