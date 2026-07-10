@@ -5,22 +5,25 @@ Tessera is a cloud-agnostic, multi-region video ingestion and distributed transc
 
 ---
 
-## ⚠️ The Problem: Why It Exists
-Processing massive video uploads for millions of concurrent users globally introduces significant system-level bottlenecks:
-1. **High WAN Ingress Costs**: Transferring multi-gigabyte raw video uploads across global regions or centralizing them in a single cloud bucket is extremely expensive and slow.
-2. **Gateway Ingestion Bottleneck**: Forcing heavy video payloads to stream through an API gateway node saturates its network interfaces, causing scale limits and slow uploads.
-3. **Split-Brain & Duplicate Work**: Without distributed locking, multiple nodes can slice the same file or transcode the same segments multiple times, wasting costly compute resources.
-4. **Slow Slicing Turnaround**: Slicing large source videos usually requires downloading the entire file to a local temp disk to parse video indexes, introducing disk bottlenecks and latency.
+## ⚠️ The Real-World Problems
+
+Processing high-volume video uploads globally for millions of users introduces severe physical and financial challenges:
+
+1. **💸 Astronomical Cloud Network Bills**: Transferring raw, multi-gigabyte video uploads across regional data centers or centralizing them in a single global cloud bucket incurs massive network ingress and egress costs.
+2. **🔌 Gateways Crash During Peak Uploads**: When thousands of users upload high-resolution video clips simultaneously (such as during a live event or breaking news), ingress API gateways saturate their network ports, drop connections, and crash.
+3. **💰 Wasted Compute Costs (Duplicate Work)**: Without strict distributed coordination, worker nodes in a cluster can end up transcoding the same video segments multiple times due to node failovers or split-brain states, driving up server bills.
+4. **⏳ Hours of Delay to Begin Transcoding**: Traditional systems must download a multi-gigabyte source video to a coordinator's local disk to analyze its structure and index metadata before they can slice it, introducing massive disk IO bottlenecks and starting delays.
 
 ---
 
 ## ✅ What Is Solved
-Tessera resolves these scaling issues through a 3-tier, share-nothing regional architecture:
-1. **Direct-to-S3 Ingestion & Data Gravity**: Gateways issue secure JWT session claims allowing client browsers to upload chunks directly to local regional buckets. Massive media payloads remain local to their home region.
-2. **Manifest-Only Cross-Region Replication (CRR)**: Regional accessibility is achieved by replicating *only* lightweight HLS playlists (`.m3u8`) and DASH manifests (`.mpd`) across regions. Heavy video chunks never cross WAN lines.
-3. **Consensus Hash Ring & Atomic Fencing**: A 1024-slot consistent hash ring backed by etcd leases dynamically distributes partition managers and uses epoch fencing to prevent duplicate task execution.
-4. **Faststart GOP-Aligned Slicing**: Slicers query raw 1MB video atoms via S3 HTTP range requests, slicing 50GB source files into GOP-aligned segment tasks in **<500ms** without downloading source files.
-5. **Sharded Task Pipelines**: Elastic workers pull segments from sharded regional NATS JetStream queues, execute GPU-accelerated FFmpeg transcodes, and perform atomic bitmap status commits in Redis.
+
+Tessera solves these real-world scaling and cost issues through an optimized, share-nothing regional model:
+
+1. **Zero Global WAN Payload Traffic**: Videos are ingested and processed entirely within their local Point of Presence (PoP) region. Only the lightweight, kilobyte-sized manifest playlists (`.m3u8` / `.mpd`) are replicated globally, saving massive network bandwidth.
+2. **Line-Rate Upload Resilience**: The API Gateway only handles session orchestration and lightweight metadata. Clients upload video parts directly to scalable object storage (like AWS S3 or Ceph), preventing gateway chokepoints.
+3. **Guaranteed Zero-Duplication Compute**: A consistent hash ring backed by etcd consensus leases and atomic epoch fencing guarantees that exactly one coordinator node coordinates task distribution, ensuring 100% compute cost efficiency.
+4. **Sub-Second Slicing Initiation**: Instead of downloading raw files, the engine queries the exact 1MB index byte offsets (`moov`/`mdat` atoms) over HTTP range requests, slicing 50GB source videos into parallel transcoding chunks in **less than 500ms**.
 
 ---
 
