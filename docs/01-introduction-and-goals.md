@@ -66,3 +66,21 @@ The system caters to three primary operational stakeholders, each with distinct 
 | **End Users & App Clients** | Ultra-fast upload speeds, real-time progress bars (0% to 100%), and instant HLS/DASH playback without buffering. | SSE Endpoint (`GET /progress/{uuid}`), Presigned Batch API (`POST /api/jobs/{uuid}/urls`). | < 100ms progress stream latency; zero upload bandwidth bottlenecks. |
 | **Platform & SRE Engineers** | Zero-downtime rolling updates, deterministic KEDA autoscaling, Jaeger distributed tracing, and Prometheus metrics. | Admin Telemetry API (`GET /api/admin/regions`), OpenTelemetry Collector (`:4317`), Prometheus Metrics (`:9090`). | 100% observability across all distributed trace roots (`TraceID = JobUUID`). |
 | **Developers & DevOps** | 60-second local boot ("Platform-in-a-Box") without complex external cloud account setups or paid SaaS tools. | Local Compose Stack ([`docker-compose.prod.yml`](../docker-compose.prod.yml)), Cobra CLI (`cmd/transcoder/main.go`). | Boot entire stack locally using `docker compose up` in under 60 seconds. |
+
+---
+
+## 1.4 Scale-to-Fit Topology & Developer UI Components
+
+Tessera is built with two operational goals in mind: allowing **flexible, self-managed capacity scaling** and offering **ready-made visual SDK components** so that any developer can add robust video capability to their app within minutes.
+
+### 1. Flexible Scale-to-Fit Topology
+The engine's architecture accommodates widely different load profiles without requiring code alterations. Developers configure the system topology according to their exact user volume:
+* **Scale-Down (e.g., 50K Users)**: Run Gateway, Coordinator, and Worker pools on small, lightweight Virtual Machines (VMs) using basic CPU transcoding. You only pay for raw compute, bypassing commercial per-minute billing fees.
+* **Scale-Up (e.g., 50M+ Users)**: Deploy clustered API Gateway fleets, a 1024-partition active hash ring with etcd consensus fencing, NATS task sharding, and GPU-accelerated auto-scaling workers. Manifest-only Cross-Region Replication (CRR) keeps heavy chunk payloads local to their PoP, minimizing WAN bandwidth bills.
+* *For exact VM instance specifications and config mappings, refer to the [Deployment Sizing Tiers Manual](deployment_scaling_tiers.md).*
+
+### 2. Ready-Made Ingress & Playback UI Components
+Tessera provides an embedded React/TypeScript `ui-sdk` containing modular, highly customizable frontend components to build the complete user video experience:
+* **Video Ingress (`VideoUploader`)**: A client-side upload component that requests presigned S3 URLs from the Gateway, uploads raw media chunks directly to object storage in parallel, and renders real-time progress indicators.
+* **Adaptive Streaming (`VideoPlayer`)**: An advanced, themeable video player wrapper built around `hls.js`. It includes real-time telemetry diagnostics overlay, playback speed/quality selectors, picture-in-picture, and customizable overlay seek-skip chevrons.
+* **Media Feed Tiles (`VideoTile`)**: An interface-ready video thumbnail component. Hovering over a tile triggers a muted HLS preview playback directly inside the tile bounds, featuring real-time playback progress lines and remaining countdown duration counters.
