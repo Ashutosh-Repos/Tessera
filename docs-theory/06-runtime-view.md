@@ -1,6 +1,6 @@
 # 6. Runtime View
 
-This section details the runtime behavior, execution flows, cross-module interactions, algorithmic formulas, and self-healing mechanics of the Distributed VOD Engine across normal execution and failure scenarios.
+This section details the runtime behavior, execution flows, cross-module interactions, algorithmic formulas, and self-healing mechanics of Tessera across normal execution and failure scenarios.
 
 ---
 
@@ -52,8 +52,8 @@ sequenceDiagram
     NATS-->>Coord: Consume "s3-raw-uploads.job.partition_{P}.>"
     Coord->>Etcd: AcquireSlicingLock(JobID, TTL: 10s)
     Coord->>Coord: Acquire Slicing Semaphore (sliceSem)
-    Coord->>S3: GetObject Range (Bytes 0 - 64KB)
-    S3-->>Coord: 64KB Header Data
+    Coord->>S3: GetObject (read first 1MB)
+    S3-->>Coord: 1MB Header Data
     Coord->>Coord: Parse MP4 Atoms (`moov` vs `mdat`)
     alt `moov` at start (Faststart)
         Coord->>S3: Open Full Stream

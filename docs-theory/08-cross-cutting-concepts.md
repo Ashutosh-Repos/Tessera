@@ -1,6 +1,6 @@
 # 8. Cross-Cutting Concepts
 
-This section details the cross-cutting architectural concepts, observability frameworks, security boundaries, memory management strategies, and data routing rules enforced across all micro-components of the Distributed VOD Engine.
+This section details the cross-cutting architectural concepts, observability frameworks, security boundaries, memory management strategies, and data routing rules enforced across all micro-components of Tessera.
 
 ---
 

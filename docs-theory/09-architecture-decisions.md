@@ -1,6 +1,6 @@
 # 9. Architecture Decisions (ADRs)
 
-This section records the historical architectural choices made during the development of the Distributed VOD Engine. Each decision is documented using the standard Nygard Architecture Decision Record (ADR) template, outlining the context, technical alternatives evaluated, decision rationale, implementation details, and long-term architectural consequences.
+This section records the historical architectural choices made during the development of Tessera. Each decision is documented using the standard Nygard Architecture Decision Record (ADR) template, outlining the context, technical alternatives evaluated, decision rationale, implementation details, and long-term architectural consequences.
 
 ---
 
@@ -139,11 +139,11 @@ We enforce **Redis Hash Tag Formatting** ([`RedisKeys`](../internal/infra/redis.
 Downloading a 50GB raw source video onto a Coordinator node's local disk before slicing takes minutes, consumes massive disk bandwidth, and requires multi-terabyte local storage arrays.
 
 ### Decision & Rationale
-We implemented **In-Memory Faststart S3 Range Probing** ([`slicer.go`](../internal/coordinator/slicer.go#L45)). The Coordinator inspects the first 64KB of the S3 file to parse MP4 container atoms (`moov` vs `mdat`). If the Faststart atom (`moov`) is located at the beginning, the Coordinator pipes the S3 network stream directly into `ffmpeg -i pipe:0` in memory, chunking raw 5-second slices to S3 without writing a single byte to local disk.
+We implemented **Faststart S3 Stream Probing** ([`slicer.go`](../internal/coordinator/slicer.go#L83)). The Coordinator reads the first 1MB of the S3 object to detect the `moov` atom position relative to `mdat`. If `moov` comes first (faststart), the Coordinator pipes the S3 stream into `ffmpeg -i pipe:0 -f segment`, which writes 5-second chunks to a temporary directory. Those chunks are then uploaded to S3 and the temp dir is cleaned up.
 
 ### Consequences
-*   **Positive:** Video slicing initiates in under 500ms; zero local disk storage required on Coordinators for Faststart videos.
-*   **Negative:** Fragmented MP4 files (`mdat` before `moov`) still require a temporary local disk download to relocate container atoms using `ffmpeg -movflags +faststart`.
+*   **Positive:** Video slicing initiates quickly; avoids downloading the full raw file for faststart videos.
+*   **Negative:** Chunks are still written to a local temp directory before upload. Fragmented MP4 files (`mdat` before `moov`) require a full download and remux with `ffmpeg -movflags +faststart` first.
 
 ---
 

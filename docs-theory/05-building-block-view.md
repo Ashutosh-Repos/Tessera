@@ -1,6 +1,6 @@
 # 5. Building Block View (C4 Components)
 
-This section dissects the internal architecture of the Distributed VOD Engine, detailing macro-containers, micro-components, data model schemas, and infrastructure driver implementations.
+This section dissects the internal architecture of Tessera, detailing macro-containers, micro-components, data model schemas, and infrastructure driver implementations.
 
 ---
 
@@ -10,7 +10,7 @@ The primary compute tier is split into three decoupled containers (Gateway, Coor
 
 ```mermaid
 C4Container
-    title Container diagram for Distributed VOD Engine & UI Ecosystem
+    title Container diagram for Tessera & UI Ecosystem
 
     Container(devportal, "Developer Portal", "Next.js 16 / React 19", "Upload Studio, HLS Adaptive Player, Hash Ring canvas, API Docs.")
     Container(adminconsole, "Admin Console", "Vite / React 19 / TS", "SRE Telemetry dashboard, Job inspector, Partition Ring lease visualizer.")
@@ -118,8 +118,8 @@ The Gateway ([`gateway/`](../internal/gateway/)) serves as the stateless HTTP ed
 The Coordinator ([`coordinator/`](../internal/coordinator/)) acts as the stateful control brain:
 
 *   **Consistent Hash Ring ([`ring.go`](../internal/coordinator/ring.go#L22))**: Maintains a virtual node ring assigning 150 virtual nodes per Coordinator node across 1024 partitions. Watches Etcd coordinator events (`WatchCoordinators`) and rebalances partition ownership automatically upon node joins/leaves.
-*   **Faststart Slicer ([`slicer.go`](../internal/coordinator/slicer.go#L45))**: Probes the first 64KB of S3 raw video objects. If the Faststart atom (`moov`) is present, it pipes the S3 network stream directly into `ffmpeg -i pipe:0` in memory, chunking raw 5-second slices to S3. Limits concurrent slicing processes via `sliceSem` (capacity 50).
-*   **Epoch-Fenced Compiler ([`manifest.go`](../internal/coordinator/manifest.go#L28))**: Verifies job completion (`BitCount == TotalTasks`), validates `storedEpoch <= currentEpoch`, waits out a 1-second S3 consistency barrier, verifies final segment existence via `HeadObject`, compiles HLS (`master.m3u8`, `1080p.m3u8`) and DASH (`manifest.mpd`) playlists, purges temporary raw S3 files, and sets 24h key TTLs in Redis.
+*   **Faststart Slicer ([`slicer.go`](../internal/coordinator/slicer.go#L83))**: Reads the first 1MB of the S3 raw video object to check for the `moov` atom. If faststart is detected, it pipes the S3 stream into `ffmpeg -i pipe:0`, segmenting into 5-second chunks written to a temp directory and then uploaded to S3. If not faststart, downloads and remuxes with `-movflags +faststart` first. Limits concurrent slicing via `sliceSem` (capacity 50).
+*   **Epoch-Fenced Compiler ([`manifest.go`](../internal/coordinator/manifest.go#L25))**: Before compiling, checks `storedEpoch > currentEpoch` — if the stored epoch is higher, it means a newer Coordinator has taken over, so this one aborts. Waits 1 second for S3 eventual consistency, verifies the last segment exists via `HeadObject`, then compiles HLS (`master.m3u8`, per-resolution `.m3u8`) and DASH (`manifest.mpd`) playlists. Cleans up raw S3 files and sets 24h Redis key TTLs.
 *   **DLQ Monitor ([`dlq.go`](../internal/coordinator/dlq.go#L17))**: Consumes failed tasks from `transcode-tasks-dlq`, verifies partition ownership, increments Redis retry counters, applies exponential backoff delays (10s, 20s, 40s), and republishes tasks or marks the job `FAILED`.
 *   **Job Garbage Collector ([`gc.go`](../internal/coordinator/gc.go#L18))**: Scans owned partitions every 10 minutes (`GCIntervalMin`), identifies jobs older than 24 hours (`GCStaleThreshHours`), purges raw S3 prefixes, sets Redis expirations, and updates Prometheus metrics.
 

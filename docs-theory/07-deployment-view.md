@@ -654,7 +654,7 @@ aws sqs create-queue \
 
 **4. Set Engine Environment Variables on EKS**:
 ```yaml
-# Kubernetes ConfigMap for the VOD Engine
+# Kubernetes ConfigMap for the Tessera Engine
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -708,7 +708,7 @@ Go to GCP Console → Cloud Storage → Settings → **Interoperability** tab �
 # Create GCP IAM service account
 gcloud iam service-accounts create vod-gke-sa \
   --project=my-gcp-project \
-  --display-name="VOD Engine GKE Service Account"
+  --display-name="Tessera GKE Service Account"
 
 # Grant storage access
 gcloud storage buckets add-iam-policy-binding gs://vod-media-gcp \
@@ -770,7 +770,7 @@ sudo tailscale up --authkey=tskey-auth-xxxxxx
 # 6. Create a systemd service (example: Worker)
 sudo tee /etc/systemd/system/video-engine-worker.service << 'EOF'
 [Unit]
-Description=VOD Engine Worker
+Description=Tessera Worker
 After=network.target tailscaled.service
 
 [Service]
@@ -859,7 +859,7 @@ gateways:
 
 ## 7.11 Deploying the Frontend Applications
 
-The VOD Engine ecosystem includes two frontend web applications: the **Developer Portal** (`developer-portal/`) and the **Admin Console** (`admin-console/`).
+The Tessera ecosystem includes two frontend web applications: the **Developer Portal** (`developer-portal/`) and the **Admin Console** (`admin-console/`).
 
 ### 7.11.1 Admin Console Deployment ([`admin-console/`](../admin-console/))
 

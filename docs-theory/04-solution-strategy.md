@@ -1,6 +1,6 @@
 # 4. Solution Strategy
 
-To satisfy the primary quality goals (Cloud Agnosticism, Extreme Scalability, and Idempotent Resiliency), the VOD Engine relies on two foundational architectural strategies: **The Pluggable Driver Model** and **The 3-Tier Compute Split**.
+To satisfy the primary quality goals (Cloud Agnosticism, Extreme Scalability, and Idempotent Resiliency), Tessera relies on two foundational architectural strategies: **The Pluggable Driver Model** and **The 3-Tier Compute Split**.
 
 ---
 

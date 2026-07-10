@@ -1,6 +1,6 @@
 # 2. Architecture Constraints
 
-The Distributed VOD Engine is bound by strict technical, hardware, operating system, and deployment constraints. These constraints dictate the low-level design of the Go codebase, memory allocation strategies, disk quota policies, and infrastructure integration boundaries.
+Tessera is bound by strict technical, hardware, operating system, and deployment constraints. These constraints dictate the low-level design of the Go codebase, memory allocation strategies, disk quota policies, and infrastructure integration boundaries.
 
 ---
 
@@ -41,9 +41,9 @@ The following table details the hard quantitative parameters configured in the u
 ### 3. Worker Local Scratch Disk & Watchdog Limits
 *   **Rationale:** FFmpeg transcoding operations generate temporary `.ts` and `.mp4` chunks on the worker node's local filesystem (`/tmp/scratch`). If a corrupted video file causes FFmpeg to write infinite bytes or hang in an infinite loop, the worker node's host storage will fill up, crashing adjacent containers on the node.
 *   **Enforcement:** 
-    - **Disk Space Pre-Flight:** Before spawning an FFmpeg process, the worker executes `syscall.Statfs(scratchDir)`. If the available free disk space is less than `MinDiskFreeGB` (10GB), the task is rejected immediately (`TaskNak`) and redelivered to another worker ([`daemon.go`](../internal/worker/daemon.go#L90)).
-    - **Temp File Size Watchdog:** A parallel goroutine monitors the temporary scratch file size every 1 second. If the file size exceeds `MaxTempFileSizeGB` (3GB), the watchdog executes an immediate `SIGKILL` (`pkill -9 ffmpeg`) on the FFmpeg process ([`daemon.go`](../internal/worker/daemon.go#L210)).
-    - **Execution Duration Watchdog:** If FFmpeg execution exceeds `MaxTaskDurationMin` (5 minutes), the context is cancelled and the process is killed.
+    - **Disk Space Pre-Flight:** Before spawning an FFmpeg process, the executor calls `syscall.Statfs(scratchDir)` ([`executor.go:L44`](../internal/worker/executor.go#L44)). If available disk space is below `MinDiskFreeGB` (10GB), the task is NAKed and redelivered to another worker.
+    - **Temp File Size Watchdog:** A dedicated goroutine monitors the output file size every `WatchdogIntervalSec` seconds ([`executor.go:L229`](../internal/worker/executor.go#L229)). If the file exceeds `MaxTempFileSizeGB` (3GB), it kills the entire FFmpeg process group with `syscall.Kill(-pid, SIGKILL)` — this uses process group signaling, not `pkill`.
+    - **Execution Duration Watchdog:** If FFmpeg runs longer than `MaxTaskDurationMin` (5 minutes), the same watchdog kills the process group.
 
 ### 4. 100% Go Standard Library Preference & CGo Elimination
 *   **Rationale:** Relying on C-bindings to libavcodec/libavformat via `cgo` introduces memory leaks, segmentation faults that crash the Go runtime, cross-compilation headaches, and strict C-library dependency locks.
