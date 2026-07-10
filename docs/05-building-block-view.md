@@ -41,12 +41,12 @@ C4Container
 
 ---
 
-## 5.2 Frontend UI Applications
+## 5.2 Frontend UI Applications & Embeddable SDKs
 
 ### 5.2.1 Developer Portal ([`developer-portal/`](../developer-portal/))
 A modern Next.js 16 (App Router) frontend designed for media engineers and developers interacting with the transcoding engine.
-- **Video Upload Studio**: Client-side drag-and-drop file ingestion. Calls Gateway `POST /api/jobs/upload-session` to retrieve presigned S3 URLs, executes multi-part PUT uploads directly to MinIO/S3, and subscribes to real-time Server-Sent Events (SSE) for transcoding progress tracking.
-- **Adaptive HLS Video Player**: Custom media player built on `hls.js` (v1.6.16). Renders output HLS playlists (`master.m3u8`), providing manual and automatic bitrate quality switching (1080p, 720p, 480p), buffer health monitoring, and stream telemetry overlays.
+- **Video Upload Studio**: Powered by `VideoUploader`. Connects to the Gateway's `POST /api/jobs/upload-session` endpoint to fetch S3 chunk pre-signed URLs and processes uploads asynchronously, subscribing to Server-Sent Events (SSE) progress alerts.
+- **Adaptive HLS Video Player**: Powered by `VideoPlayer`. Provides quality selector dropdowns (1080p, 720p, 480p), ABR buffer tracking, telemetry diagnostic graphs, theme color mappings, and customizable overlay double-tap/click seek-skip panels.
 - **Interactive Hash Ring Visualizer**: Canvas-based visualizer illustrating FNV-1a partition hashing across 1024 virtual slots.
 - **Developer Integration Guide**: Interactive code generator for Go, Node.js, Python, and cURL SDK integrations.
 
@@ -55,6 +55,12 @@ A high-throughput SRE operations dashboard built with Vite, React 19, TypeScript
 - **Real-Time Telemetry Dashboard ([`Dashboard.tsx`](../admin-console/src/pages/Dashboard.tsx))**: Displays active worker node counts, CPU/GPU utilization, GOP slicing latency, NATS JetStream queue depth, and memory consumption.
 - **Pipeline Jobs Inspector ([`Jobs.tsx`](../admin-console/src/pages/Jobs.tsx))**: Searchable, status-filtered table of all transcoding jobs (`PENDING`, `SLICING`, `TRANSCODING`, `COMPLETED`, `FAILED`). Allows SREs to trigger manual task retries, inspect segment completion bitmaps, and view error stack traces.
 - **Consistent Hashing Topology Visualizer ([`Topology.tsx`](../admin-console/src/pages/Topology.tsx))**: Real-time map of the 1024 virtual partitions, active coordinator Etcd lease heartbeats, and failover lock statuses.
+
+### 5.2.3 Embeddable React UI SDK ([`ui-sdk/`](../ui-sdk/))
+An embeddable npm-ready package containing client-facing video assets:
+- **`VideoPlayer`**: Custom HLS/DASH media player wrapper around `hls.js`. Offers configurable icon/text colors (with dynamic light/dark theme fallbacks), configurable skip overlays (`sides` arrows or central row buttons), and real-time playback logs.
+- **`VideoTile`**: Hover-responsive video preview element. Plays a muted HLS segment upon mouse hover, updating a dynamic countdown remaining duration label (e.g. `-10:15`) and rendering a real-time progress bar.
+- **`VideoUploader`**: Client-side direct-to-S3 multi-part parallel uploader with dynamic progress feedback.
 
 ---
 
