@@ -124,6 +124,7 @@ Developer documentation is split into clean, high-density reference files:
 - **[Developer Integration Guide](docs/integration_guide.md)** — Step-by-step REST API reference (create session, get presigned URL batch, complete upload, SSE telemetry) and React `ui-sdk` widgets.
 - **[Production Deployment & Sizing](docs/deployment.md)** — Complete environment variables catalog, local multi-region simulation settings, and capacity sizing matrix (Tiers 1 to 6).
 - **[Architecture Decisions (ADRs)](docs/adr.md)** — Record of technical decisions and trade-offs (SSE vs WebSockets, Hash Ring vs Central Queue, FFmpeg subprocess vs CGo).
+- **[Complete Architecture, Logic & Metrics Analysis](docs/analysis_results.md)** — Exhaustive analysis of design logic, production readiness evaluation, hardware/cost efficiency, and complete Prometheus metrics registry.
 
 ---
 
