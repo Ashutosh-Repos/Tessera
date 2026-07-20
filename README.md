@@ -158,6 +158,7 @@ Developer documentation is split into clean, high-density reference files:
 * **[Production Deployment & Sizing](docs/deployment.md)** — Complete environment variables catalog, local multi-region simulation settings, and capacity sizing matrix (Tiers 1 to 6).
 * **[Architecture Decisions (ADRs)](docs/adr.md)** — Record of technical decisions and trade-offs (SSE vs WebSockets, Hash Ring vs Central Queue, FFmpeg subprocess vs CGo).
 * **[Complete Architecture, Logic & Metrics Analysis](docs/analysis_results.md)** — Comprehensive analysis of design logic, production readiness evaluation, hardware/cost efficiency, and complete Prometheus metrics registry.
+* **[Free Cloud Setup & Benchmarking Guide](docs/cloud_benchmarking.md)** — Operational playbook for zero-cost cloud deployments, automated load-testing scripts, and benchmarking scorecards across OCI, GCP, and GPU platforms.
 
 ---
 
