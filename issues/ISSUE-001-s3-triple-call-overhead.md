@@ -40,13 +40,27 @@ For a standard 10-minute video producing 120 segments across 3 resolutions (360 
 
 ---
 
+## ⚠️ "Strings Attached" (Risks & Trade-Offs)
+
+1. **Risk of Incomplete Object Exposure (Non-Atomic Uploads)**: If a worker node crashes mid-stream during `PutObject(task.OutputKey)`, S3 or MinIO might leave a zero-byte or partially written object under the canonical key.
+2. **False-Positive Idempotency Trigger**: If a retrying worker relies on `HeadObject(task.OutputKey)` as a fallback idempotency check when Redis is down, an incomplete file could cause `HeadObject` to return `Exists == true`, marking a corrupted segment as completed.
+3. **Mitigation / Safe Implementation**:
+   - Perform local file size check BEFORE uploading.
+   - S3 `PutObject` is atomic for single-part HTTP requests once payload is fully uploaded.
+   - In `checkIdempotency()`, verify `HeadObject.Size > 0` rather than just `Exists == true`.
+
+---
+
 ## 🛠️ Proposed Solution
 
-Directly upload to `task.OutputKey`. Double-commit / race conditions are already guarded against by Redis idempotency checks (`checkIdempotency`) and bitmap completion pipelines.
+Directly upload to `task.OutputKey` after validating local file non-zero size.
 
 ### Recommended Fix:
 ```go
-// Upload directly to canonical S3 destination key
+// Upload directly to canonical S3 destination key after size verification
+if fi.Size() == 0 {
+    return fmt.Errorf("transcoded output file %s is 0 bytes", localOutput)
+}
 if err := te.objStore.PutObject(ctx, task.OutputKey, f, fi.Size()); err != nil {
     return fmt.Errorf("failed to upload transcode output to storage: %w", err)
 }

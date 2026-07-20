@@ -37,6 +37,16 @@ if len(msgs) == 0 {
 
 ---
 
+## ⚠️ "Strings Attached" (Risks & Trade-Offs)
+
+1. **Graceful Shutdown & SIGTERM Cancellation Delay**: If `Fetch` blocks indefinitely or for a long timeout (e.g., 5 seconds) waiting for messages, worker shutdown during daemon termination (`stopPullers`) will hang until the NATS fetch times out unless the context cancellation is handled cleanly.
+2. **NATS Multiplexer Connection Pressure**: Polling with zero timeout across high shard counts can increase CPU spin if not using true NATS event-driven push or context-bounded polling.
+3. **Mitigation / Safe Implementation**:
+   - Use a short context-bounded blocking fetch (`Fetch(batch, nats.Context(pullersCtx), nats.MaxWait(500*time.Millisecond))`).
+   - Ensure `pullersCtx` cancellation immediately aborts the fetch call.
+
+---
+
 ## 🛠️ Proposed Solution
 
 Utilize NATS JetStream blocking pull subscriptions (`PullSubscribe` with `Fetch(batch, nats.Context(ctx))`) or exponential adaptive backoff (e.g., 5ms $\rightarrow$ 10ms $\rightarrow$ 50ms) instead of a fixed 100ms sleep loop.

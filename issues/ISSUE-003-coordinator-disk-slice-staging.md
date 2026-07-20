@@ -39,6 +39,16 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 
 ---
 
+## ⚠️ "Strings Attached" (Risks & Trade-Offs)
+
+1. **Unknown Total Segment Count During Streaming**: If slices are uploaded asynchronously as FFmpeg emits them, the coordinator does not know the final `segmentCount` until FFmpeg finishes slicing.
+2. **Asset Generation Dependency (Thumbnails & Sprites)**: Asset generation (`generateAssets`) relies on extracting preview images from segment chunks. If chunks are deleted immediately after streaming upload, asset generation would fail unless sample frames are buffered or extracted concurrently during slicing.
+3. **Mitigation / Safe Implementation**:
+   - Keep a lightweight sample directory for keyframe thumbnails while streaming `.mp4` segment chunks directly to S3.
+   - Wait for FFmpeg process exit code before marking `segmentCount` in the S3 job manifest.
+
+---
+
 ## 🛠️ Proposed Solution
 
 Pipe segment creation in parallel directly to S3 as FFmpeg outputs them:

@@ -61,28 +61,13 @@ $$\text{Total Segment Tasks} = 720 \times 3 = 2,160 \text{ tasks}$$
 
 ---
 
-## 🎯 Code Location & Trace
+## ⚠️ "Strings Attached" (Risks & Gotchas of Proposed Fixes)
 
-* **Invocation Site**: [`internal/worker/executor.go:131`](file:///Users/ashutoshkumar/Desktop/Apple%20Project/internal/worker/executor.go#L131)
-  ```go
-  // Step 8: Probe duration BEFORE upload
-  duration := te.probeDuration(localOutput)
-  ```
-* **Function Implementation**: [`internal/worker/executor.go:216-227`](file:///Users/ashutoshkumar/Desktop/Apple%20Project/internal/worker/executor.go#L216-L227)
-  ```go
-  func (te *TaskExecutor) probeDuration(filePath string) string {
-      out, err := exec.Command("ffprobe",
-          "-v", "error",
-          "-show_entries", "format=duration",
-          "-of", "default=noprint_wrappers=1:nokey=1",
-          filePath,
-      ).Output()
-      if err != nil {
-          return "0"
-      }
-      return strings.TrimSpace(string(out))
-  }
-  ```
+1. **Pipe Buffer Deadlock Risk (Solution A)**: If FFmpeg progress output is piped to stdout via `-progress pipe:1` and Go does not read the pipe concurrently in a separate goroutine, FFmpeg will block when the OS pipe buffer (64KB on Linux) fills up, hanging the transcode job indefinitely!
+2. **PTS Discontinuity in MPEG-TS (Solution B)**: MPEG-TS container timestamps (PTS) can start at an offset (e.g. 1.4s or 90kHz ticks) or have non-monotonic B-frame ordering. Naively reading raw PTS without handling wrap-around ($2^{33}$) can lead to incorrect float durations.
+3. **Mitigation / Safe Implementation**:
+   - Always drain FFmpeg progress pipe in a non-blocking background goroutine.
+   - If progress pipe parsing fails or returns `0`, fall back to fixed segment GOP duration (`5.000000`s) before attempting any external command execution.
 
 ---
 
