@@ -130,8 +130,10 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	// ──── Step 8: Probe duration BEFORE upload (B-1 fix) ────
 	duration := te.probeDuration(localOutput)
 
-	// ──── Step 9: Upload to S3 (temporary path first) ────
-	tempOutputKey := fmt.Sprintf("%s.%s.tmp", task.OutputKey, te.cfg.NodeID)
+	// ──── Step 9: Upload directly to canonical S3 key ────
+	// S3/MinIO PutObject is strongly consistent and atomic for single-part uploads:
+	// the key is not visible until the full HTTP body completes successfully.
+	// No temp-key staging needed (eliminates 2 redundant S3 API calls per task).
 	f, err := os.Open(localOutput)
 	if err != nil {
 		return fmt.Errorf("failed to open local output %s: %w", localOutput, err)
@@ -143,13 +145,14 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 		return fmt.Errorf("failed to stat local output %s: %w", localOutput, err)
 	}
 
-	if err := te.objStore.PutObject(ctx, tempOutputKey, f, fi.Size()); err != nil {
-		return fmt.Errorf("failed to upload transcode output to storage: %w", err)
+	// Size guard: reject 0-byte corrupted transcode output
+	if fi.Size() == 0 {
+		return fmt.Errorf("transcoded output %s is 0 bytes — corrupted segment", localOutput)
 	}
 
-	// Atomic rename to canonical path (prevents double-commit)
-	te.objStore.CopyObject(ctx, tempOutputKey, task.OutputKey)
-	te.objStore.DeleteObject(ctx, tempOutputKey)
+	if err := te.objStore.PutObject(ctx, task.OutputKey, f, fi.Size()); err != nil {
+		return fmt.Errorf("failed to upload transcode output to storage: %w", err)
+	}
 
 	// ──── Step 10: Redis Completion Pipeline (single RTT) ────
 	te.state.ExecuteCompletionPipeline(ctx, infra.CompletionPipelineParams{
@@ -193,7 +196,7 @@ func (te *TaskExecutor) checkIdempotency(ctx context.Context, task models.Segmen
 	if err != nil {
 		return false // assume not done
 	}
-	return meta.Exists
+	return meta.Exists && meta.Size > 0
 }
 
 func (te *TaskExecutor) downloadFromS3(ctx context.Context, key, localPath string) error {
