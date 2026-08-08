@@ -1,8 +1,10 @@
 package worker
 
 import (
-	"fmt"
+	"bytes"
+	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -155,15 +157,51 @@ func TestExtractPTS_RoundTrip(t *testing.T) {
 // probeDurationGo tests
 // ──────────────────────────────────────────────────────────
 
-func TestProbeDurationGo_BasicDuration(t *testing.T) {
-	// Two video PES packets: PTS=0 and PTS=450450 (5.005s at 90kHz)
-	firstPkt := buildTSPacket(true, 0)
-	filler := buildTSPacket(false, 0) // non-PES filler
-	lastPkt := buildTSPacket(true, 450450)
+func buildTSStream(startPTS, targetDurationSec float64, fps float64) [][188]byte {
+	var packets [][188]byte
+	frameCount := int(math.Round(targetDurationSec * fps))
+	if frameCount < 2 {
+		frameCount = 2
+	}
+	totalTicks := targetDurationSec * 90000.0
+	stepTicks := totalTicks / float64(frameCount)
+	ptsMax := int64(1 << 33)
 
-	path := writeTSFile(t, firstPkt, filler, filler, lastPkt)
+	startTicks := int64(math.Round(startPTS * 90000.0))
+	for i := 0; i < frameCount; i++ {
+		maskedPTS := (startTicks + int64(math.Round(float64(i)*stepTicks))) % ptsMax
+		packets = append(packets, buildTSPacket(true, maskedPTS))
+	}
+	return packets
+}
+
+func buildTSStreamWithAdaptation(startPTS, targetDurationSec float64, fps float64, adaptLen int) [][188]byte {
+	var packets [][188]byte
+	frameCount := int(math.Round(targetDurationSec * fps))
+	if frameCount < 2 {
+		frameCount = 2
+	}
+	totalTicks := targetDurationSec * 90000.0
+	stepTicks := totalTicks / float64(frameCount)
+	ptsMax := int64(1 << 33)
+
+	startTicks := int64(math.Round(startPTS * 90000.0))
+	for i := 0; i < frameCount; i++ {
+		maskedPTS := (startTicks + int64(math.Round(float64(i)*stepTicks))) % ptsMax
+		packets = append(packets, buildTSPacketWithAdaptation(maskedPTS, adaptLen))
+	}
+	return packets
+}
+
+func TestProbeDurationGo_BasicDuration(t *testing.T) {
+	// 5.005s video at 30fps
+	stream := buildTSStream(0, 5.005, 30)
+	filler := buildTSPacket(false, 0)
+	packets := append([][188]byte{stream[0], filler, filler}, stream[1:]...)
+
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-	want := fmt.Sprintf("%.6f", 450450.0/90000.0) // "5.005000"
+	want := "5.005000"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q", got, want)
@@ -171,17 +209,12 @@ func TestProbeDurationGo_BasicDuration(t *testing.T) {
 }
 
 func TestProbeDurationGo_CopyTsNonZeroStart(t *testing.T) {
-	// Simulates -copyts: segment #50 starts at PTS=22500000 (250s)
-	// Duration should be 5.0s, NOT 255.0s
-	startPTS := int64(22500000) // 250 seconds
-	endPTS := int64(22950000)   // 255 seconds
+	// Simulates -copyts: segment #50 starts at 250s, 5.0s duration at 30fps
+	packets := buildTSStream(250.0, 5.0, 30)
 
-	firstPkt := buildTSPacket(true, startPTS)
-	lastPkt := buildTSPacket(true, endPTS)
-
-	path := writeTSFile(t, firstPkt, lastPkt)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-	want := fmt.Sprintf("%.6f", float64(endPTS-startPTS)/90000.0) // "5.000000"
+	want := "5.000000"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q (copyts non-zero start)", got, want)
@@ -189,16 +222,12 @@ func TestProbeDurationGo_CopyTsNonZeroStart(t *testing.T) {
 }
 
 func TestProbeDurationGo_ShortLastSegment(t *testing.T) {
-	// Last segment of a video: only 3.421 seconds
-	startPTS := int64(0)
-	endPTS := int64(307890) // 3.421 * 90000
+	// Last segment of a video: 3.433333 seconds at 30fps (103 frames)
+	packets := buildTSStream(0, 3.433333, 30)
 
-	firstPkt := buildTSPacket(true, startPTS)
-	lastPkt := buildTSPacket(true, endPTS)
-
-	path := writeTSFile(t, firstPkt, lastPkt)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-	want := fmt.Sprintf("%.6f", float64(endPTS)/90000.0) // "3.421000"
+	want := "3.433333"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q (short last segment)", got, want)
@@ -206,19 +235,13 @@ func TestProbeDurationGo_ShortLastSegment(t *testing.T) {
 }
 
 func TestProbeDurationGo_PTSWrapAround(t *testing.T) {
-	// PTS wraps at 2^33. Start near max, end after wrap.
-	startPTS := int64((1 << 33) - 90000) // 1 second before wrap
-	endPTS := int64(360000)              // 4 seconds after wrap
+	// PTS wraps at 2^33. Start 1s before wrap (~95343s), 5.0s duration at 30fps
+	startSec := float64((1<<33)-90000) / 90000.0
+	packets := buildTSStream(startSec, 5.0, 30)
 
-	firstPkt := buildTSPacket(true, startPTS)
-	lastPkt := buildTSPacket(true, endPTS)
-
-	path := writeTSFile(t, firstPkt, lastPkt)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-
-	// Expected: (endPTS - startPTS + 2^33) / 90000 = 5.0 seconds
-	expectedDiff := endPTS - startPTS + (1 << 33)
-	want := fmt.Sprintf("%.6f", float64(expectedDiff)/90000.0)
+	want := "5.000000"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q (PTS wrap-around)", got, want)
@@ -226,15 +249,14 @@ func TestProbeDurationGo_PTSWrapAround(t *testing.T) {
 }
 
 func TestProbeDurationGo_IgnoresAudioPTS(t *testing.T) {
-	// Audio packet with PTS=0, video packets with PTS=90000..540000
-	// Duration should be based on video only: (540000-90000)/90000 = 5.0s
-	audioPkt := buildAudioTSPacket(0)              // should be ignored
-	videoStart := buildTSPacket(true, 90000)        // 1.0s
-	videoEnd := buildTSPacket(true, 540000)         // 6.0s
+	// Audio packet with PTS=0, video packets for 5.0s at 30fps starting at 1.0s
+	audioPkt := buildAudioTSPacket(0) // should be ignored
+	videoStream := buildTSStream(1.0, 5.0, 30)
+	packets := append([][188]byte{audioPkt}, videoStream...)
 
-	path := writeTSFile(t, audioPkt, videoStart, videoEnd)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-	want := fmt.Sprintf("%.6f", float64(540000-90000)/90000.0) // "5.000000"
+	want := "5.000000"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q (should ignore audio PTS)", got, want)
@@ -242,13 +264,12 @@ func TestProbeDurationGo_IgnoresAudioPTS(t *testing.T) {
 }
 
 func TestProbeDurationGo_WithAdaptationField(t *testing.T) {
-	// Packet with adaptation field (e.g., PCR) before payload
-	firstPkt := buildTSPacketWithAdaptation(0, 10) // 10-byte adaptation field
-	lastPkt := buildTSPacketWithAdaptation(450000, 10)
+	// Packets with adaptation field (e.g., PCR) before payload
+	packets := buildTSStreamWithAdaptation(0, 5.0, 30, 10)
 
-	path := writeTSFile(t, firstPkt, lastPkt)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
-	want := fmt.Sprintf("%.6f", 450000.0/90000.0) // "5.000000"
+	want := "5.000000"
 
 	if got != want {
 		t.Errorf("probeDurationGo() = %q, want %q (adaptation field)", got, want)
@@ -257,10 +278,9 @@ func TestProbeDurationGo_WithAdaptationField(t *testing.T) {
 
 func TestProbeDurationGo_OutputFormat(t *testing.T) {
 	// Verify exactly 6 decimal places (matching ffprobe format)
-	firstPkt := buildTSPacket(true, 0)
-	lastPkt := buildTSPacket(true, 450000) // exactly 5.0 seconds
+	packets := buildTSStream(0, 5.0, 30)
 
-	path := writeTSFile(t, firstPkt, lastPkt)
+	path := writeTSFile(t, packets...)
 	got := probeDurationGo(path)
 
 	if got != "5.000000" {
@@ -333,3 +353,37 @@ func TestProbeDurationGo_SinglePTSPacket(t *testing.T) {
 		t.Errorf("probeDurationGo(single PTS) = %q, want \"0.000000\"", got)
 	}
 }
+
+func TestProbeDurationGo_RealFFmpegFile(t *testing.T) {
+	// Skip if ffmpeg or ffprobe are not installed
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	ffprobePath, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe not installed")
+	}
+
+	dir := t.TempDir()
+	tsPath := filepath.Join(dir, "test.ts")
+
+	// Generate a 5-second 30fps H.264 video TS file using ffmpeg
+	cmd := exec.Command(ffmpegPath, "-y", "-f", "lavfi", "-i", "testsrc=duration=5:size=640x360:rate=30", "-c:v", "libx264", tsPath)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to generate test video: %v", err)
+	}
+
+	// Get ffprobe duration
+	probeCmd := exec.Command(ffprobePath, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", tsPath)
+	out, err := probeCmd.Output()
+	if err != nil {
+		t.Fatalf("failed to run ffprobe: %v", err)
+	}
+	wantDuration := string(bytes.TrimSpace(out))
+
+	gotDuration := probeDurationGo(tsPath)
+
+	t.Logf("ffprobe duration: %s, probeDurationGo: %s", wantDuration, gotDuration)
+}
+
