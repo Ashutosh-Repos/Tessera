@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -214,16 +213,7 @@ func (te *TaskExecutor) downloadFromS3(ctx context.Context, key, localPath strin
 }
 
 func (te *TaskExecutor) probeDuration(filePath string) string {
-	out, err := exec.Command("ffprobe",
-		"-v", "error",
-		"-show_entries", "format=duration",
-		"-of", "default=noprint_wrappers=1:nokey=1",
-		filePath,
-	).Output()
-	if err != nil {
-		return "0"
-	}
-	return strings.TrimSpace(string(out))
+	return probeDurationGo(filePath)
 }
 
 func (te *TaskExecutor) runWatchdog(ctx context.Context, cmd *exec.Cmd, outputPath string) {
