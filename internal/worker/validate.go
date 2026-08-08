@@ -38,8 +38,11 @@ func probeDurationGo(filePath string) string {
 		return "0"
 	}
 
-	var firstPTS int64 = -1
-	var lastPTS int64 = -1
+	var minPTS int64 = -1
+	var maxPTS int64 = -1
+	var prevPTS int64 = -1
+	var baseOffset int64 = 0
+	var frameCount int64 = 0
 
 	packet := make([]byte, tsPacketSize)
 
@@ -106,24 +109,34 @@ func probeDurationGo(filePath string) string {
 
 		pts := extractPTS(packet[ptsStart : ptsStart+5])
 
-		if firstPTS < 0 {
-			firstPTS = pts
+		// Handle 33-bit PTS wrap-around seamlessly
+		if prevPTS >= 0 && pts < prevPTS-(ptsMaxValue/2) {
+			baseOffset += ptsMaxValue
 		}
-		lastPTS = pts
+		prevPTS = pts
+
+		unwrappedPTS := pts + baseOffset
+		if minPTS < 0 || unwrappedPTS < minPTS {
+			minPTS = unwrappedPTS
+		}
+		if maxPTS < 0 || unwrappedPTS > maxPTS {
+			maxPTS = unwrappedPTS
+		}
+		frameCount++
 	}
 
-	if firstPTS < 0 || lastPTS < 0 {
+	if frameCount == 0 || minPTS < 0 || maxPTS < 0 {
 		return "0" // no video PTS found
 	}
 
-	// ── Handle 33-bit PTS wrap-around ──
-	diff := lastPTS - firstPTS
-	if diff < 0 {
-		diff += ptsMaxValue
+	if frameCount == 1 {
+		return "0.000000"
 	}
 
-	duration := float64(diff) / ptsClockRate
-	return fmt.Sprintf("%.6f", duration)
+	diff := maxPTS - minPTS
+	frameDur := float64(diff) / float64(frameCount-1)
+	totalDuration := (float64(diff) + frameDur) / ptsClockRate
+	return fmt.Sprintf("%.6f", totalDuration)
 }
 
 // extractPTS decodes a 33-bit Presentation Timestamp from 5 bytes
