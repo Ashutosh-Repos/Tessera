@@ -36,18 +36,16 @@ func NewTaskExecutor(state infra.StateStore, objStore infra.ObjectStore, cfg con
 func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task models.SegmentTask) error {
 	// ──── Step 1: Pre-flight Disk Check (prevent out-of-disk crashes) ────
 	if err := os.MkdirAll(te.cfg.Worker.ScratchDir, 0755); err != nil {
-		msg.Nak()
+		// C-2 fix: let caller handle NAK to prevent double-NAK
 		return fmt.Errorf("failed to create scratch directory: %w", err)
 	}
 
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(te.cfg.Worker.ScratchDir, &stat); err != nil {
-		msg.Nak()
 		return fmt.Errorf("failed to stat scratch dir: %w", err)
 	}
 	freeGB := (stat.Bavail * uint64(stat.Bsize)) / (1024 * 1024 * 1024)
 	if freeGB < uint64(te.cfg.Worker.MinDiskFreeGB) {
-		msg.Nak() // re-queue to another worker
 		return fmt.Errorf("disk quota exceeded: %d GB free", freeGB)
 	}
 
@@ -60,7 +58,6 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	// ──── Step 3: Download raw chunk ────
 	localInput := filepath.Join(te.cfg.Worker.ScratchDir, fmt.Sprintf("%s_%d_%s.mp4", task.JobID, task.SegmentIdx, task.Resolution))
 	if err := te.downloadFromS3(ctx, task.RawChunkKey, localInput); err != nil {
-		msg.Nak()
 		return err
 	}
 	defer os.Remove(localInput)
@@ -174,7 +171,6 @@ func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput 
 		BitIndex:   task.BitIndex(),
 		Duration:   duration,
 		UnixNow:    time.Now().Unix(),
-		Completed:  1, // the worker doesn't know total completed, the pipeline handles INCR
 	})
 }
 
@@ -219,10 +215,17 @@ func (te *TaskExecutor) downloadFromS3(ctx context.Context, key, localPath strin
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	_, err = io.Copy(f, rc)
-	return err
+	// M-1 fix: ensure data is fully written to disk before FFmpeg reads it
+	if _, err = io.Copy(f, rc); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to sync downloaded file to disk: %w", err)
+	}
+	return f.Close()
 }
 
 func (te *TaskExecutor) probeDuration(filePath string) string {

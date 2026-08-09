@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -212,12 +213,8 @@ func (r *RedisStore) IncrRateLimit(ctx context.Context, key string, windowSec in
 func (r *RedisStore) ExecuteCompletionPipeline(ctx context.Context, p CompletionPipelineParams) error {
 	keys := NewRedisKeys(p.JobID)
 	taskKey := fmt.Sprintf("task:{%s}:%d:%s", p.JobID, p.SegmentIdx, p.Resolution)
-	segRes := fmt.Sprintf("%d_%s", p.SegmentIdx, p.Resolution)
-
-	pct := 0
-	if p.Total > 0 {
-		pct = int((float64(p.Completed) / float64(p.Total)) * 100)
-	}
+	// M-5 fix: use "segment_003_720p" format to match manifest.go's reader
+	segRes := fmt.Sprintf("segment_%03d_%s", p.SegmentIdx, p.Resolution)
 
 	pipe := r.client.Pipeline()
 
@@ -227,26 +224,43 @@ func (r *RedisStore) ExecuteCompletionPipeline(ctx context.Context, p Completion
 	// 2. Set bit
 	pipe.SetBit(ctx, keys.ProgressBitmap(), int64(p.BitIndex), 1)
 
-	// 3. Update completion count
-	pipe.HIncrBy(ctx, keys.StatusHash(), "completed", 1)
+	// 3. Update completion count (result read after Exec)
+	incrCmd := pipe.HIncrBy(ctx, keys.StatusHash(), "completed", 1)
 	pipe.HSet(ctx, keys.StatusHash(), "last_updated", p.UnixNow)
 
-	// 4. Save duration
+	// 4. Get total for accurate progress calculation (result read after Exec)
+	totalCmd := pipe.HGet(ctx, keys.StatusHash(), "total")
+
+	// 5. Save duration
 	pipe.HSet(ctx, keys.DurationsHash(), segRes, p.Duration)
 
-	// 5. Emit progress
-	pipe.XAdd(ctx, &redis.XAddArgs{
+	_, err := pipe.Exec(ctx)
+	if err != nil && err != redis.Nil {
+		return err
+	}
+
+	// C-3 fix: compute accurate progress from pipeline results, then emit
+	completed := incrCmd.Val()
+	totalStr, _ := totalCmd.Result()
+	total, _ := strconv.ParseInt(totalStr, 10, 64)
+
+	pct := int64(0)
+	if total > 0 {
+		pct = (completed * 100) / total
+	}
+
+	// Emit accurate progress as a separate XADD (needs computed values)
+	r.client.XAdd(ctx, &redis.XAddArgs{
 		Stream: keys.ProgressStream(),
 		Values: map[string]interface{}{
 			"phase":     string(models.JobPhaseTranscoding),
-			"completed": p.Completed,
-			"total":     p.Total,
+			"completed": completed,
+			"total":     total,
 			"pct":       pct,
 		},
 	})
 
-	_, err := pipe.Exec(ctx)
-	return err
+	return nil
 }
 
 func (r *RedisStore) DeleteKeys(ctx context.Context, keys ...string) error {

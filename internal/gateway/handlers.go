@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+
 	"log"
 	"net/http"
 	"sort"
@@ -268,9 +268,10 @@ func (g *GatewayDaemon) handleCompleteUpload(w http.ResponseWriter, r *http.Requ
 			partitionCount = 1024
 		}
 
-		h := fnv.New32a()
-		h.Write([]byte(uuidParam))
-		partitionID := int(h.Sum32()) % partitionCount
+		// C-1 fix: use claims.JobID ("region:uuid") not raw uuidParam ("uuid")
+		// to match the partition calculation in handleCreateSession which uses
+		// models.PartitionOf(jobID, ...) where jobID = "region:uuid".
+		partitionID := models.PartitionOf(claims.JobID, partitionCount)
 
 		s3MockEvent := map[string]interface{}{
 			"Records": []map[string]interface{}{
@@ -284,8 +285,8 @@ func (g *GatewayDaemon) handleCompleteUpload(w http.ResponseWriter, r *http.Requ
 			},
 		}
 		eventBytes, _ := json.Marshal(s3MockEvent)
-		subject := fmt.Sprintf("s3-raw-uploads.job.partition_%d.job_%s", partitionID, uuidParam)
-		
+		subject := fmt.Sprintf("s3-raw-uploads.job.partition_%d.job_%s", partitionID, claims.JobID)
+
 		if err := g.messageBus.PublishEvent(r.Context(), subject, eventBytes); err != nil {
 			log.Printf("Failed to publish S3 event to NATS: %v", err)
 		} else {
@@ -318,13 +319,7 @@ func (g *GatewayDaemon) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	seen := make(map[string]bool)
 
 	for _, key := range keys {
-		jobID := key
-		if strings.HasPrefix(jobID, "job:{") {
-			jobID = strings.TrimPrefix(jobID, "job:{")
-		}
-		if strings.HasSuffix(jobID, "}:status") {
-			jobID = strings.TrimSuffix(jobID, "}:status")
-		}
+		jobID := NormalizeJobID(key)
 
 		if seen[jobID] {
 			continue
@@ -516,4 +511,11 @@ func (g *GatewayDaemon) handleListCoordinators(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(coordinators)
+}
+
+// NormalizeJobID strips Redis cluster hash tags "job:{" and "}:status" or "}" from a key if present.
+func NormalizeJobID(key string) string {
+	jobID := strings.TrimPrefix(key, "job:{")
+	jobID = strings.TrimSuffix(jobID, "}:status")
+	return strings.TrimSuffix(jobID, "}")
 }

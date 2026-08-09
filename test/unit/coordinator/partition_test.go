@@ -30,7 +30,7 @@ func TestParseSegmentKey(t *testing.T) {
 		},
 		{
 			key:         "invalid_key_format.mp4",
-			expectedSeg: 0,
+			expectedSeg: -1, // M-2 fix: returns -1 on parse error
 			expectedRes: models.Res1080p,
 		},
 	}

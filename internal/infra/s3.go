@@ -89,11 +89,29 @@ func NewS3Client(cfg config.ObjectStoreConfig) (*S3Client, error) {
 	client := s3.NewFromConfig(awsCfg)
 	presigner := s3.NewPresignClient(client)
 
-	return &S3Client{
+	s3Client := &S3Client{
 		client:    client,
 		presigner: presigner,
 		bucket:    cfg.Bucket,
-	}, nil
+	}
+	_ = s3Client.EnsureBucket(context.Background())
+	return s3Client, nil
+}
+
+func (s *S3Client) EnsureBucket(ctx context.Context) error {
+	if s == nil || s.client == nil || s.bucket == "" {
+		return nil
+	}
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(s.bucket),
+	})
+	if err == nil {
+		return nil
+	}
+	_, err = s.client.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String(s.bucket),
+	})
+	return err
 }
 
 func (s *S3Client) CreateMultipartUpload(ctx context.Context, key string) (string, error) {

@@ -49,3 +49,46 @@ func TestValidateUploadRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeJobID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "full cluster key with job prefix and status suffix",
+			input:    "job:{us-east-1:1234-5678}:status",
+			expected: "us-east-1:1234-5678",
+		},
+		{
+			name:     "key with only job prefix",
+			input:    "job:{us-west-2:9999}",
+			expected: "us-west-2:9999",
+		},
+		{
+			name:     "key with only status suffix",
+			input:    "eu-central-1:8888}:status",
+			expected: "eu-central-1:8888",
+		},
+		{
+			name:     "raw job ID without hash tags",
+			input:    "ap-southeast-1:7777",
+			expected: "ap-southeast-1:7777",
+		},
+		{
+			name:     "empty key",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := gateway.NormalizeJobID(tt.input)
+			if got != tt.expected {
+				t.Errorf("NormalizeJobID(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
