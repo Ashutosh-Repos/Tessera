@@ -72,8 +72,6 @@ type CompletionPipelineParams struct {
 	BitIndex   int
 	Duration   string
 	UnixNow    int64
-	Completed  int // current completed count for progress stream
-	Total      int
 }
 
 type StreamEntry struct {

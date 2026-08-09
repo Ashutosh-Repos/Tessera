@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/distributed-transcoder/internal/models"
+	"golang.org/x/sync/errgroup"
 )
 
 func (pm *PartitionManager) sliceJob(ctx context.Context, jobID string) {
@@ -265,40 +266,56 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 		return 0, fmt.Errorf("failed to read sliced directory: %w", err)
 	}
 
-	segmentCount := 0
+	// Pre-filter to valid .mp4 chunk files only
+	var chunkFiles []os.DirEntry
 	for _, file := range files {
 		if file.IsDir() || filepath.Ext(file.Name()) != ".mp4" || file.Name() == "faststart.mp4" {
 			continue
 		}
-
-		filePath := filepath.Join(tempDir, file.Name())
-		f, err := os.Open(filePath)
-		if err != nil {
-			return 0, fmt.Errorf("failed to open segment %s: %w", file.Name(), err)
-		}
-
-		stat, err := f.Stat()
-		if err != nil {
-			f.Close()
-			return 0, fmt.Errorf("failed to stat segment %s: %w", file.Name(), err)
-		}
-
-		// Destination S3 key
-		destKey := fmt.Sprintf("jobs/partition_%d/job_%s/raw/%s", pm.partitionID, jobID, file.Name())
-		err = pm.coord.objStore.PutObject(ctx, destKey, f, stat.Size())
-		f.Close()
-		if err != nil {
-			return 0, fmt.Errorf("failed to upload segment %s to S3: %w", file.Name(), err)
-		}
-
-		segmentCount++
+		chunkFiles = append(chunkFiles, file)
 	}
 
-	if segmentCount == 0 {
+	if len(chunkFiles) == 0 {
 		return 0, fmt.Errorf("no segments produced by ffmpeg")
 	}
 
-	return segmentCount, nil
+	// Upload chunks in parallel with bounded concurrency.
+	// Limit of 10 saturates typical 1Gbps NIC without exhausting TCP sockets
+	// or triggering S3/MinIO connection throttling.
+	// If any single upload fails, gCtx is cancelled, aborting all in-flight uploads.
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(10)
+
+	for _, file := range chunkFiles {
+		file := file // capture loop variable for goroutine closure
+		g.Go(func() error {
+			filePath := filepath.Join(tempDir, file.Name())
+			f, err := os.Open(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to open segment %s: %w", file.Name(), err)
+			}
+			defer f.Close()
+
+			stat, err := f.Stat()
+			if err != nil {
+				return fmt.Errorf("failed to stat segment %s: %w", file.Name(), err)
+			}
+
+			destKey := fmt.Sprintf("jobs/partition_%d/job_%s/raw/%s", pm.partitionID, jobID, file.Name())
+			if err := pm.coord.objStore.PutObject(gCtx, destKey, f, stat.Size()); err != nil {
+				return fmt.Errorf("failed to upload segment %s to S3: %w", file.Name(), err)
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return 0, err
+	}
+
+	// If g.Wait() returns nil, every goroutine succeeded.
+	// len(chunkFiles) is the exact segment count — no atomic counter needed.
+	return len(chunkFiles), nil
 }
 
 func (pm *PartitionManager) markJobFailed(ctx context.Context, jobID, reason string) {

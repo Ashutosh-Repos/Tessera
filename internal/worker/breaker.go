@@ -16,14 +16,18 @@ type CircuitBreaker struct {
 	backoffBase      time.Duration
 	backoffMax       time.Duration
 	consecutiveFails int
+	// H-2 fix: half-open state for auto-recovery
+	lastOpenTime     time.Time     // when the breaker last transitioned to open
+	cooldownDuration time.Duration // how long to wait before trying half-open
 }
 
 func NewCircuitBreaker(windowSec, threshold int) *CircuitBreaker {
 	return &CircuitBreaker{
-		windowDuration: time.Duration(windowSec) * time.Second,
-		threshold:      threshold,
-		backoffBase:    100 * time.Millisecond,
-		backoffMax:     5 * time.Second,
+		windowDuration:   time.Duration(windowSec) * time.Second,
+		threshold:        threshold,
+		backoffBase:      100 * time.Millisecond,
+		backoffMax:       5 * time.Second,
+		cooldownDuration: 30 * time.Second, // H-2 fix: retry Redis after 30s
 	}
 }
 
@@ -46,6 +50,7 @@ func (cb *CircuitBreaker) RecordFailure() {
 
 	if len(cb.failures) >= cb.threshold {
 		cb.open = true
+		cb.lastOpenTime = now
 	}
 }
 
@@ -57,11 +62,21 @@ func (cb *CircuitBreaker) RecordSuccess() {
 }
 
 // IsOpen returns true if Redis should not be contacted.
-// When open, the caller must apply exponential backoff before S3 fallback.
+// H-2 fix: after cooldownDuration, the breaker transitions to half-open,
+// allowing a single trial call to Redis. If that call succeeds (RecordSuccess),
+// the breaker closes. If it fails (RecordFailure), the breaker re-opens.
 func (cb *CircuitBreaker) IsOpen() bool {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
-	return cb.open
+	if !cb.open {
+		return false
+	}
+	// Half-open: if enough time has passed, allow one trial
+	if time.Since(cb.lastOpenTime) >= cb.cooldownDuration {
+		cb.open = false // transition to half-open (allow one trial)
+		return false
+	}
+	return true
 }
 
 // BackoffDuration returns the current backoff duration based on consecutive failures.
@@ -77,3 +92,4 @@ func (cb *CircuitBreaker) BackoffDuration() time.Duration {
 	}
 	return d
 }
+

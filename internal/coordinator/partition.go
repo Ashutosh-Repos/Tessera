@@ -17,6 +17,7 @@ import (
 // PartitionManager handles the full lifecycle of jobs assigned to a single partition.
 type PartitionManager struct {
 	partitionID int
+	epoch       int64 // H-1 fix: store the epoch for partition-level fencing
 	coord       *CoordinatorDaemon
 	ctx         context.Context
 	cancelFn    context.CancelFunc
@@ -25,6 +26,7 @@ type PartitionManager struct {
 func NewPartitionManager(coord *CoordinatorDaemon, partitionID int, epoch int64) *PartitionManager {
 	return &PartitionManager{
 		partitionID: partitionID,
+		epoch:       epoch,
 		coord:       coord,
 	}
 }
@@ -191,6 +193,9 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 		// Rebuild bitmap from S3 object existence
 		for _, tk := range validTransKeys {
 			seg, res := ParseSegmentKey(tk)
+			if seg < 0 {
+				continue // M-2 fix: skip unparseable keys
+			}
 			bitIdx := seg*len(models.AllResolutions) + resolutionOffset(res)
 			pm.coord.state.SetBit(ctx, jobID, bitIdx)
 		}
@@ -298,21 +303,23 @@ func extractJobID(data string) string {
 	return data
 }
 
+// ParseSegmentKey extracts segment index and resolution from an S3 key like
+// "jobs/.../transcoded/segment_003_720p.ts". Returns -1 on parse error (M-2 fix).
 func ParseSegmentKey(key string) (int, models.Resolution) {
 	base := filepath.Base(key)
 	if !strings.HasPrefix(base, "segment_") || !strings.HasSuffix(base, ".ts") {
-		return 0, models.Res1080p
+		return -1, models.Res1080p
 	}
 	parts := strings.Split(base, "_")
 	if len(parts) >= 3 {
 		segIdx, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return 0, models.Res1080p
+			return -1, models.Res1080p
 		}
 		resStr := strings.TrimSuffix(parts[2], ".ts")
 		return segIdx, models.Resolution(resStr)
 	}
-	return 0, models.Res1080p
+	return -1, models.Res1080p
 }
 
 func resolutionOffset(res models.Resolution) int {

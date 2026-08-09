@@ -91,7 +91,11 @@ func (w *WorkerDaemon) Run(ctx context.Context) error {
 					"gpu":   gpu,
 					"tasks": tasks,
 				}
-				w.state.RegisterWorker(context.Background(), w.cfg.NodeID, info, 6) // 6s TTL
+				// L-3 fix: use short-timeout context instead of context.Background()
+				// to prevent hangs during shutdown
+				hbCtx, hbCancel := context.WithTimeout(ctx, 2*time.Second)
+				w.state.RegisterWorker(hbCtx, w.cfg.NodeID, info, 6) // 6s TTL
+				hbCancel()
 			}
 		}
 	}()

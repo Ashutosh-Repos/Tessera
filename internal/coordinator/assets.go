@@ -40,6 +40,7 @@ func (pm *PartitionManager) generateAssets(ctx context.Context, jobID string, te
 		// Execute ffmpeg to grab the first frame of the segment
 		cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", chunkPath, "-vframes", "1", "-vf",
 			"scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2", cellPath)
+		cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
 		if err := cmd.Run(); err != nil {
 			log.Printf("Job %s: failed to extract sprite cell for segment %d: %v", jobID, i, err)
 			continue
@@ -82,6 +83,7 @@ func (pm *PartitionManager) generateAssets(ctx context.Context, jobID string, te
 
 		cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", chunkPath, "-vframes", "1", "-vf",
 			"scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2", thumbPath)
+		cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
 		if err := cmd.Run(); err != nil {
 			log.Printf("Job %s: failed to extract thumbnail option %d: %v", jobID, i, err)
 			continue
@@ -150,6 +152,7 @@ func (pm *PartitionManager) generateAssets(ctx context.Context, jobID string, te
 
 func probeChunkMetadata(ctx context.Context, chunkPath string) (int, int, int, error) {
 	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "csv=p=0", chunkPath)
+	cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
@@ -179,6 +182,7 @@ func probeChunkMetadata(ctx context.Context, chunkPath string) (int, int, int, e
 
 func getChunkDuration(ctx context.Context, chunkPath string) (float64, error) {
 	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", chunkPath)
+	cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
