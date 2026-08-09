@@ -1,16 +1,17 @@
-package coordinator
+package coordinator_test
 
 import (
 	"testing"
 
+	"github.com/distributed-transcoder/internal/coordinator"
 	"github.com/distributed-transcoder/internal/models"
 )
 
 func TestParseSegmentKey(t *testing.T) {
 	tests := []struct {
-		key            string
-		expectedSeg    int
-		expectedRes    models.Resolution
+		key         string
+		expectedSeg int
+		expectedRes models.Resolution
 	}{
 		{
 			key:         "jobs/partition_123/job_abc/transcoded/segment_003_1080p.ts",
@@ -36,7 +37,7 @@ func TestParseSegmentKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
-			seg, res := parseSegmentKey(tt.key)
+			seg, res := coordinator.ParseSegmentKey(tt.key)
 			if seg != tt.expectedSeg {
 				t.Errorf("expected segment %d, got %d", tt.expectedSeg, seg)
 			}

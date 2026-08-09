@@ -25,7 +25,6 @@ import (
 )
 
 func TestEndToEndWorkflow(t *testing.T) {
-	// 1. Unified local test configuration
 	cfg := config.Config{
 		Region: "us-east-1",
 		NodeID: "test-node-e2e",
@@ -84,7 +83,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 		},
 	}
 
-	// 2. Initialize Infrastructure
 	stateStore, err := infra.NewRedisStore(cfg.Redis)
 	if err != nil {
 		t.Fatalf("failed to connect to Redis: %v", err)
@@ -95,7 +93,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("failed to connect to NATS: %v", err)
 	}
 
-	// Initialize NATS streams and durable consumers
 	if err := messageBus.InitEcosystem(cfg.Coordinator.NATSShardCount); err != nil {
 		t.Fatalf("failed to init NATS ecosystem: %v", err)
 	}
@@ -110,7 +107,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("failed to connect to S3/MinIO: %v", err)
 	}
 
-	// 3. Obtain input video (default to generating a fast 2s mock video, use large files only if TEST_LARGE_VIDEO is set)
 	inputVideoPath := ""
 	if os.Getenv("TEST_LARGE_VIDEO") == "1" {
 		candidatePaths := []string{
@@ -155,11 +151,9 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 	videoSize := videoStat.Size()
 
-	// 4. Boot the daemons in background contexts
 	daemonCtx, cancelDaemons := context.WithCancel(context.Background())
 	defer cancelDaemons()
 
-	// Boot Ingest Gateway
 	gwDaemon := gateway.NewGatewayDaemon(cfg, stateStore, objStore, messageBus, coordClient)
 	go func() {
 		if err := gwDaemon.Run(daemonCtx); err != nil && err != http.ErrServerClosed {
@@ -167,11 +161,9 @@ func TestEndToEndWorkflow(t *testing.T) {
 		}
 	}()
 
-	// Boot Coordinator
 	coordDaemon := coordinator.NewCoordinatorDaemon(cfg, "test-coord-1", stateStore, messageBus, coordClient, objStore)
 	go coordDaemon.Run(daemonCtx)
 
-	// Boot Worker
 	workerDaemon := worker.NewWorkerDaemon(cfg, stateStore, objStore, messageBus)
 	go func() {
 		if err := workerDaemon.Run(daemonCtx); err != nil {
@@ -179,10 +171,8 @@ func TestEndToEndWorkflow(t *testing.T) {
 		}
 	}()
 
-	// Allow daemons 1 second to start and register
 	time.Sleep(1 * time.Second)
 
-	// 5. API Session Creation Workflow
 	createReq := models.CreateSessionRequest{
 		FileSizeBytes: videoSize,
 		FileName:      "test-input.mp4",
@@ -206,11 +196,9 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("failed to decode upload session: %v", err)
 	}
 
-	// Register teardown cleanup to ensure initial and final states are identical
 	t.Cleanup(func() {
 		log.Printf("[TEARDOWN] Cleaning up integration test resources for Job %s", session.JobID)
 		
-		// 1. Remove Redis state
 		keysToDelete := []string{
 			"job:{" + session.JobID + "}:status",
 			"job:{" + session.JobID + "}:progress",
@@ -220,7 +208,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 			"dedup:event:{" + session.JobID + "}",
 			"dedup:event:{" + session.JobID + ":manifest}",
 		}
-		// Also delete the individual task keys (12 segments * 3 resolutions)
 		for seg := 0; seg < 12; seg++ {
 			for _, res := range models.AllResolutions {
 				keysToDelete = append(keysToDelete, fmt.Sprintf("task:{%s}:%d:%s", session.JobID, seg, res))
@@ -231,12 +218,10 @@ func TestEndToEndWorkflow(t *testing.T) {
 		partitionID := models.PartitionOf(session.JobID, cfg.Coordinator.PartitionCount)
 		stateStore.RemoveActiveJob(context.Background(), partitionID, session.JobID)
 		
-		// 2. Remove MinIO/S3 files
 		prefix := fmt.Sprintf("jobs/partition_%d/job_%s/", partitionID, session.JobID)
 		objStore.DeletePrefix(context.Background(), prefix)
 	})
 
-	// 6. Generate presigned PUT URL and upload video payload
 	client := &http.Client{}
 	reqURL := fmt.Sprintf("http://127.0.0.1:8085/api/jobs/%s/urls?start=1&count=1", session.JobID)
 	reqBatch, err := http.NewRequest("POST", reqURL, nil)
@@ -256,7 +241,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("failed to decode presigned batch: %v", err)
 	}
 
-	// Upload part directly to MinIO using the presigned URL
 	putReq, err := http.NewRequest("PUT", batch.URLs[0], videoFile)
 	if err != nil {
 		t.Fatalf("failed to build PUT request: %v", err)
@@ -274,7 +258,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 	etag := putResp.Header.Get("ETag")
 
-	// 7. Complete the upload
 	completePayload := struct {
 		Parts []struct {
 			PartNumber int    `json:"part_number"`
@@ -307,10 +290,8 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("complete upload returned status %d: %s", completeResp.StatusCode, string(body))
 	}
 
-	// 8. Publish the upload event to NATS trigger subject
 	partitionID := models.PartitionOf(session.JobID, cfg.Coordinator.PartitionCount)
 	
-	// S3 mock event notification format
 	s3MockEvent := map[string]interface{}{
 		"Records": []map[string]interface{}{
 			{
@@ -330,7 +311,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 		t.Fatalf("failed to publish NATS trigger upload event: %v", err)
 	}
 
-	// 9. Poll status from Redis until job is COMPLETED (with timeout)
 	timeout := time.After(300 * time.Second)
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -358,22 +338,18 @@ func TestEndToEndWorkflow(t *testing.T) {
 		}
 	}
 
-	// 10. Verify generated playlists and manifests in MinIO
 	manifestPrefix := fmt.Sprintf("jobs/partition_%d/job_%s/", partitionID, session.JobID)
 	
-	// Check Master playlist
 	masterMeta, err := objStore.HeadObject(context.Background(), manifestPrefix+"master.m3u8")
 	if err != nil || !masterMeta.Exists {
 		t.Errorf("HLS master.m3u8 is missing from S3/MinIO bucket")
 	}
 
-	// Check DASH manifest
 	dashMeta, err := objStore.HeadObject(context.Background(), manifestPrefix+"manifest.mpd")
 	if err != nil || !dashMeta.Exists {
 		t.Errorf("DASH manifest.mpd is missing from S3/MinIO bucket")
 	}
 
-	// Check completion sentinel
 	sentinelMeta, err := objStore.HeadObject(context.Background(), manifestPrefix+"job_completed.json")
 	if err != nil || !sentinelMeta.Exists {
 		t.Errorf("job_completed.json sentinel is missing from S3/MinIO bucket")

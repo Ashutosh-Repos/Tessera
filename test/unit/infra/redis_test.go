@@ -1,13 +1,15 @@
-package infra
+package infra_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/distributed-transcoder/internal/infra"
 )
 
 func TestRedisKeys_HashTagging(t *testing.T) {
 	jobID := "us-east:7574a6cb-4b9b-4b06-9749-89135111cdbf"
-	keys := NewRedisKeys(jobID)
+	keys := infra.NewRedisKeys(jobID)
 
 	expectedHashTag := "{" + jobID + "}"
 
