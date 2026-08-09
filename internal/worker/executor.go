@@ -34,7 +34,7 @@ func NewTaskExecutor(state infra.StateStore, objStore infra.ObjectStore, cfg con
 }
 
 func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task models.SegmentTask) error {
-	// ──── Step 1: Disk Quota Check ────
+	// ──── Step 1: Pre-flight Disk Check (prevent out-of-disk crashes) ────
 	if err := os.MkdirAll(te.cfg.Worker.ScratchDir, 0755); err != nil {
 		msg.Nak()
 		return fmt.Errorf("failed to create scratch directory: %w", err)
@@ -126,7 +126,7 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 		return fmt.Errorf("ffmpeg failed: %w (stderr: %s)", err, stderr.String())
 	}
 
-	// ──── Step 8: Probe duration BEFORE upload (B-1 fix) ────
+	// ──── Step 8-10: Probe, Upload, & Redis Completion Pipeline ────
 	if err := te.CommitTranscodedOutput(ctx, localOutput, task); err != nil {
 		return err
 	}
@@ -136,9 +136,16 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	return nil
 }
 
+// CommitTranscodedOutput probes the TS segment duration, validates size,
+// uploads directly to S3, and executes the single-RTT Redis completion pipeline.
 func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput string, task models.SegmentTask) error {
+	// ──── Step 8: Probe duration BEFORE upload (B-1 fix) ────
 	duration := te.probeDuration(localOutput)
 
+	// ──── Step 9: Upload directly to canonical S3 key ────
+	// S3/MinIO PutObject is strongly consistent and atomic for single-part uploads:
+	// the key is not visible until the full HTTP body completes successfully.
+	// No temp-key staging needed (eliminates 2 redundant S3 API calls per task).
 	f, err := os.Open(localOutput)
 	if err != nil {
 		return fmt.Errorf("failed to open local output %s: %w", localOutput, err)
@@ -150,6 +157,7 @@ func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput 
 		return fmt.Errorf("failed to stat local output %s: %w", localOutput, err)
 	}
 
+	// Size guard: reject 0-byte corrupted transcode output
 	if fi.Size() == 0 {
 		return fmt.Errorf("transcoded output %s is 0 bytes — corrupted segment", localOutput)
 	}
@@ -158,6 +166,7 @@ func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput 
 		return fmt.Errorf("failed to upload transcode output to storage: %w", err)
 	}
 
+	// ──── Step 10: Redis Completion Pipeline (single RTT) ────
 	return te.state.ExecuteCompletionPipeline(ctx, infra.CompletionPipelineParams{
 		JobID:      task.JobID,
 		SegmentIdx: task.SegmentIdx,
@@ -165,10 +174,11 @@ func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput 
 		BitIndex:   task.BitIndex(),
 		Duration:   duration,
 		UnixNow:    time.Now().Unix(),
-		Completed:  1,
+		Completed:  1, // the worker doesn't know total completed, the pipeline handles INCR
 	})
 }
 
+// CheckIdempotency checks if a segment task has already been processed using Redis (fast path) or S3 (slow fallback).
 func (te *TaskExecutor) CheckIdempotency(ctx context.Context, task models.SegmentTask) bool {
 	// Fast path: Redis EXISTS (< 0.1ms)
 	if !te.breaker.IsOpen() {
