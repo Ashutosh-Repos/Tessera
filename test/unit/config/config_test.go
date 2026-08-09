@@ -1,9 +1,11 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/distributed-transcoder/internal/config"
 )
 
 func TestLoadConfig_ValidYAML(t *testing.T) {
@@ -86,7 +88,7 @@ tracing:
 		t.Fatalf("failed to write test config file: %v", err)
 	}
 
-	cfg, err := LoadConfig(configPath)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
@@ -131,7 +133,6 @@ gateway:
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	// Set env overrides
 	t.Setenv("TRANSCODER_REDIS_ADDRS", "redis-a:6379,redis-b:6379")
 	t.Setenv("TRANSCODER_REDIS_PASSWORD", "env-password")
 	t.Setenv("TRANSCODER_NATS_URLS", "nats://nats-env:4222")
@@ -145,7 +146,7 @@ gateway:
 	t.Setenv("TRANSCODER_LISTEN_ADDR", ":9999")
 	t.Setenv("TRANSCODER_MESSAGE_BUS_PROVIDER", "sqs")
 
-	cfg, err := LoadConfig(configPath)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
@@ -183,7 +184,7 @@ gateway:
 }
 
 func TestLoadConfig_FileNotFound(t *testing.T) {
-	_, err := LoadConfig("/nonexistent/path/config.yaml")
+	_, err := config.LoadConfig("/nonexistent/path/config.yaml")
 	if err == nil {
 		t.Errorf("LoadConfig(nonexistent) = nil error, want error")
 	}

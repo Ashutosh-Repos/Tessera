@@ -1,8 +1,9 @@
-package gateway
+package gateway_test
 
 import (
 	"testing"
 
+	"github.com/distributed-transcoder/internal/gateway"
 	"github.com/distributed-transcoder/internal/models"
 )
 
@@ -41,7 +42,7 @@ func TestValidateUploadRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUploadRequest(tt.req)
+			err := gateway.ValidateUploadRequest(tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateUploadRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}

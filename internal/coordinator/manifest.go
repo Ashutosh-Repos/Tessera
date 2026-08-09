@@ -72,12 +72,10 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 		}
 	}
 
-	// 6. Generate and upload HLS Master + Media Playlists
+	// 6. Generate and upload HLS Media & Master Playlists
 	prefix := fmt.Sprintf("jobs/partition_%d/job_%s/", pm.partitionID, jobID)
-	
-	// Compile and upload media playlists (e.g. 1080p.m3u8)
 	for _, res := range manifest.Resolutions {
-		playlistBuf := pm.generateHLSMediaPlaylist(res, manifest.SegmentCount, durations)
+		playlistBuf := pm.GenerateHLSMediaPlaylist(res, manifest.SegmentCount, durations)
 		playlistKey := fmt.Sprintf("%s%s.m3u8", prefix, res)
 		err = pm.coord.objStore.PutObject(ctx, playlistKey, bytes.NewReader(playlistBuf.Bytes()), int64(playlistBuf.Len()))
 		if err != nil {
@@ -88,7 +86,7 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 	}
 
 	// Compile and upload master playlist
-	masterBuf := pm.generateHLSMasterPlaylist(manifest.Resolutions)
+	masterBuf := pm.GenerateHLSMasterPlaylist(manifest.Resolutions)
 	err = pm.coord.objStore.PutObject(ctx, prefix+"master.m3u8", bytes.NewReader(masterBuf.Bytes()), int64(masterBuf.Len()))
 	if err != nil {
 		log.Printf("Job %s: failed to upload master HLS playlist: %v", jobID, err)
@@ -97,7 +95,7 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 	}
 
 	// 7. Generate and upload DASH Manifest (manifest.mpd)
-	dashBuf := pm.generateDASHManifest(manifest.Resolutions, manifest.SegmentCount, durations)
+	dashBuf := pm.GenerateDASHManifest(manifest.Resolutions, manifest.SegmentCount, durations)
 	err = pm.coord.objStore.PutObject(ctx, prefix+"manifest.mpd", bytes.NewReader(dashBuf.Bytes()), int64(dashBuf.Len()))
 	if err != nil {
 		log.Printf("Job %s: failed to upload DASH manifest: %v", jobID, err)
@@ -191,7 +189,7 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 	log.Printf("Job %s: successfully compiled HLS and DASH manifests", jobID)
 }
 
-func (pm *PartitionManager) generateHLSMasterPlaylist(resolutions []models.Resolution) *bytes.Buffer {
+func (pm *PartitionManager) GenerateHLSMasterPlaylist(resolutions []models.Resolution) *bytes.Buffer {
 	buf := bytes.NewBufferString("#EXTM3U\n")
 	buf.WriteString("#EXT-X-VERSION:3\n\n")
 
@@ -215,7 +213,7 @@ func (pm *PartitionManager) generateHLSMasterPlaylist(resolutions []models.Resol
 	return buf
 }
 
-func (pm *PartitionManager) generateHLSMediaPlaylist(res models.Resolution, segmentCount int, durations map[string]string) *bytes.Buffer {
+func (pm *PartitionManager) GenerateHLSMediaPlaylist(res models.Resolution, segmentCount int, durations map[string]string) *bytes.Buffer {
 	buf := bytes.NewBufferString("#EXTM3U\n")
 	buf.WriteString("#EXT-X-VERSION:3\n")
 	
@@ -246,7 +244,7 @@ func (pm *PartitionManager) generateHLSMediaPlaylist(res models.Resolution, segm
 	return buf
 }
 
-func (pm *PartitionManager) generateDASHManifest(resolutions []models.Resolution, segmentCount int, durations map[string]string) *bytes.Buffer {
+func (pm *PartitionManager) GenerateDASHManifest(resolutions []models.Resolution, segmentCount int, durations map[string]string) *bytes.Buffer {
 	// Calculate total duration using one resolution
 	totalDur := 0.0
 	refRes := models.Res1080p

@@ -1,15 +1,16 @@
-package coordinator
+package coordinator_test
 
 import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"github.com/distributed-transcoder/internal/coordinator"
 )
 
 func TestHashRing_RebuildAndOwnerOf(t *testing.T) {
-	ring := NewHashRing()
+	ring := coordinator.NewHashRing()
 
-	// Single node owns all partitions
 	ring.Rebuild([]string{"coord-node-1"})
 
 	for p := 0; p < 1024; p++ {
@@ -26,7 +27,7 @@ func TestHashRing_RebuildAndOwnerOf(t *testing.T) {
 }
 
 func TestHashRing_PartitionDistribution(t *testing.T) {
-	ring := NewHashRing()
+	ring := coordinator.NewHashRing()
 	nodes := []string{"node-a", "node-b", "node-c"}
 
 	ring.Rebuild(nodes)
@@ -41,7 +42,6 @@ func TestHashRing_PartitionDistribution(t *testing.T) {
 		counts[owner]++
 	}
 
-	// Verify all 3 nodes own a balanced share of partitions (between 250 and 450 partitions each out of 1024)
 	for _, node := range nodes {
 		cnt := counts[node]
 		if cnt < 250 || cnt > 450 {
@@ -51,7 +51,7 @@ func TestHashRing_PartitionDistribution(t *testing.T) {
 }
 
 func TestHashRing_EmptyRing(t *testing.T) {
-	ring := NewHashRing()
+	ring := coordinator.NewHashRing()
 	ring.Rebuild([]string{})
 
 	owner := ring.OwnerOf(10)
@@ -66,13 +66,12 @@ func TestHashRing_EmptyRing(t *testing.T) {
 }
 
 func TestHashRing_ConcurrentReadRebuild(t *testing.T) {
-	ring := NewHashRing()
+	ring := coordinator.NewHashRing()
 	ring.Rebuild([]string{"node-1", "node-2"})
 
 	var wg sync.WaitGroup
 	numGoroutines := 20
 
-	// Concurrent Readers
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(id int) {
@@ -84,7 +83,6 @@ func TestHashRing_ConcurrentReadRebuild(t *testing.T) {
 		}(i)
 	}
 
-	// Concurrent Rebuilder
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

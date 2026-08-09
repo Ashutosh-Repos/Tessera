@@ -109,7 +109,7 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 	}
 	prefix := buf[:n]
 
-	isFast := isFaststart(prefix)
+	isFast := IsFaststart(prefix)
 
 	var segmentCount int
 	if isFast {
@@ -324,7 +324,7 @@ func (pm *PartitionManager) markJobFailed(ctx context.Context, jobID, reason str
 	}
 }
 
-func isFaststart(prefix []byte) bool {
+func IsFaststart(prefix []byte) bool {
 	moovIdx := bytes.Index(prefix, []byte("moov"))
 	mdatIdx := bytes.Index(prefix, []byte("mdat"))
 	return moovIdx != -1 && (mdatIdx == -1 || moovIdx < mdatIdx)

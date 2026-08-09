@@ -52,7 +52,7 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	}
 
 	// ──── Step 2: Two-Tier Idempotency Check ────
-	if te.checkIdempotency(ctx, task) {
+	if te.CheckIdempotency(ctx, task) {
 		msg.Ack() // already completed
 		return nil
 	}
@@ -127,12 +127,18 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	}
 
 	// ──── Step 8: Probe duration BEFORE upload (B-1 fix) ────
+	if err := te.CommitTranscodedOutput(ctx, localOutput, task); err != nil {
+		return err
+	}
+
+	// ──── Step 11: ACK ────
+	msg.Ack()
+	return nil
+}
+
+func (te *TaskExecutor) CommitTranscodedOutput(ctx context.Context, localOutput string, task models.SegmentTask) error {
 	duration := te.probeDuration(localOutput)
 
-	// ──── Step 9: Upload directly to canonical S3 key ────
-	// S3/MinIO PutObject is strongly consistent and atomic for single-part uploads:
-	// the key is not visible until the full HTTP body completes successfully.
-	// No temp-key staging needed (eliminates 2 redundant S3 API calls per task).
 	f, err := os.Open(localOutput)
 	if err != nil {
 		return fmt.Errorf("failed to open local output %s: %w", localOutput, err)
@@ -144,7 +150,6 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 		return fmt.Errorf("failed to stat local output %s: %w", localOutput, err)
 	}
 
-	// Size guard: reject 0-byte corrupted transcode output
 	if fi.Size() == 0 {
 		return fmt.Errorf("transcoded output %s is 0 bytes — corrupted segment", localOutput)
 	}
@@ -153,23 +158,18 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 		return fmt.Errorf("failed to upload transcode output to storage: %w", err)
 	}
 
-	// ──── Step 10: Redis Completion Pipeline (single RTT) ────
-	te.state.ExecuteCompletionPipeline(ctx, infra.CompletionPipelineParams{
+	return te.state.ExecuteCompletionPipeline(ctx, infra.CompletionPipelineParams{
 		JobID:      task.JobID,
 		SegmentIdx: task.SegmentIdx,
 		Resolution: string(task.Resolution),
 		BitIndex:   task.BitIndex(),
 		Duration:   duration,
 		UnixNow:    time.Now().Unix(),
-		Completed:  1, // the worker doesn't know total completed, the pipeline handles INCR
+		Completed:  1,
 	})
-
-	// ──── Step 11: ACK ────
-	msg.Ack()
-	return nil
 }
 
-func (te *TaskExecutor) checkIdempotency(ctx context.Context, task models.SegmentTask) bool {
+func (te *TaskExecutor) CheckIdempotency(ctx context.Context, task models.SegmentTask) bool {
 	// Fast path: Redis EXISTS (< 0.1ms)
 	if !te.breaker.IsOpen() {
 		exists, err := te.state.TaskExists(ctx, task.JobID, task.SegmentIdx, string(task.Resolution))
@@ -216,7 +216,7 @@ func (te *TaskExecutor) downloadFromS3(ctx context.Context, key, localPath strin
 }
 
 func (te *TaskExecutor) probeDuration(filePath string) string {
-	return probeDurationGo(filePath)
+	return ProbeDurationGo(filePath)
 }
 
 func (te *TaskExecutor) runWatchdog(ctx context.Context, cmd *exec.Cmd, outputPath string) {

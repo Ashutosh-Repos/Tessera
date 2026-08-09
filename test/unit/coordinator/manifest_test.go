@@ -1,20 +1,20 @@
-package coordinator
+package coordinator_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/distributed-transcoder/internal/coordinator"
 	"github.com/distributed-transcoder/internal/models"
 )
 
 func TestGenerateHLSMasterPlaylist_RFC8216(t *testing.T) {
-	pm := &PartitionManager{}
+	pm := &coordinator.PartitionManager{}
 
 	resolutions := []models.Resolution{models.Res1080p, models.Res720p, models.Res480p}
-	buf := pm.generateHLSMasterPlaylist(resolutions)
+	buf := pm.GenerateHLSMasterPlaylist(resolutions)
 	playlist := buf.String()
 
-	// Assert RFC 8216 compliance
 	if !strings.HasPrefix(playlist, "#EXTM3U\n") {
 		t.Errorf("master playlist missing #EXTM3U header")
 	}
@@ -22,7 +22,6 @@ func TestGenerateHLSMasterPlaylist_RFC8216(t *testing.T) {
 		t.Errorf("master playlist missing #EXT-X-VERSION:3 tag")
 	}
 
-	// Assert stream inf tags
 	if !strings.Contains(playlist, "#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080\n1080p.m3u8") {
 		t.Errorf("master playlist missing 1080p stream inf entry")
 	}
@@ -35,7 +34,7 @@ func TestGenerateHLSMasterPlaylist_RFC8216(t *testing.T) {
 }
 
 func TestGenerateHLSMediaPlaylist_RFC8216(t *testing.T) {
-	pm := &PartitionManager{}
+	pm := &coordinator.PartitionManager{}
 
 	durations := map[string]string{
 		"segment_000_1080p": "5.000000",
@@ -43,14 +42,13 @@ func TestGenerateHLSMediaPlaylist_RFC8216(t *testing.T) {
 		"segment_002_1080p": "4.998000",
 	}
 
-	buf := pm.generateHLSMediaPlaylist(models.Res1080p, 3, durations)
+	buf := pm.GenerateHLSMediaPlaylist(models.Res1080p, 3, durations)
 	playlist := buf.String()
 
-	// Assert RFC 8216 tags
 	if !strings.HasPrefix(playlist, "#EXTM3U\n") {
 		t.Errorf("media playlist missing #EXTM3U header")
 	}
-	if !strings.Contains(playlist, "#EXT-X-TARGETDURATION:6\n") { // int(5.005) + 1 = 6
+	if !strings.Contains(playlist, "#EXT-X-TARGETDURATION:6\n") {
 		t.Errorf("media playlist missing expected target duration tag, got playlist:\n%s", playlist)
 	}
 	if !strings.Contains(playlist, "#EXT-X-MEDIA-SEQUENCE:0") {
@@ -65,7 +63,7 @@ func TestGenerateHLSMediaPlaylist_RFC8216(t *testing.T) {
 }
 
 func TestGenerateDASHManifest_ISO23009(t *testing.T) {
-	pm := &PartitionManager{}
+	pm := &coordinator.PartitionManager{}
 
 	resolutions := []models.Resolution{models.Res1080p, models.Res720p}
 	durations := map[string]string{
@@ -73,10 +71,9 @@ func TestGenerateDASHManifest_ISO23009(t *testing.T) {
 		"segment_001_1080p": "5.000000",
 	}
 
-	buf := pm.generateDASHManifest(resolutions, 2, durations)
+	buf := pm.GenerateDASHManifest(resolutions, 2, durations)
 	manifest := buf.String()
 
-	// Assert ISO/IEC 23009-1 XML structure
 	if !strings.HasPrefix(manifest, "<?xml version=\"1.0\" encoding=\"utf-8\"?>") {
 		t.Errorf("DASH manifest missing XML header")
 	}

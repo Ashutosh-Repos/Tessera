@@ -1,14 +1,15 @@
-package metrics
+package metrics_test
 
 import (
 	"testing"
 
+	"github.com/distributed-transcoder/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestNewGatewayMetrics(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	m := NewGatewayMetrics(reg)
+	m := metrics.NewGatewayMetrics(reg)
 
 	if m == nil {
 		t.Fatalf("NewGatewayMetrics returned nil")
@@ -20,7 +21,7 @@ func TestNewGatewayMetrics(t *testing.T) {
 
 func TestNewCoordinatorMetrics(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	m := NewCoordinatorMetrics(reg)
+	m := metrics.NewCoordinatorMetrics(reg)
 
 	if m == nil {
 		t.Fatalf("NewCoordinatorMetrics returned nil")
@@ -32,7 +33,7 @@ func TestNewCoordinatorMetrics(t *testing.T) {
 
 func TestNewWorkerMetrics(t *testing.T) {
 	reg := prometheus.NewRegistry()
-	m := NewWorkerMetrics(reg)
+	m := metrics.NewWorkerMetrics(reg)
 
 	if m == nil {
 		t.Fatalf("NewWorkerMetrics returned nil")

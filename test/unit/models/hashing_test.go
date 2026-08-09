@@ -1,8 +1,10 @@
-package models
+package models_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/distributed-transcoder/internal/models"
 )
 
 func TestPartitionOf(t *testing.T) {
@@ -10,8 +12,8 @@ func TestPartitionOf(t *testing.T) {
 
 	// Test case 1: Deterministic mapping
 	jobID1 := "7574a6cb-4b9b-4b06-9749-89135111cdbf"
-	p1 := PartitionOf(jobID1, totalPartitions)
-	p2 := PartitionOf(jobID1, totalPartitions)
+	p1 := models.PartitionOf(jobID1, totalPartitions)
+	p2 := models.PartitionOf(jobID1, totalPartitions)
 
 	if p1 != p2 {
 		t.Errorf("PartitionOf is non-deterministic: p1=%d, p2=%d", p1, p2)
@@ -26,14 +28,13 @@ func TestPartitionOf(t *testing.T) {
 	partitionsSeen := make(map[int]bool)
 	for i := 0; i < 100; i++ {
 		jobID := fmt.Sprintf("job-uuid-%d", i)
-		p := PartitionOf(jobID, totalPartitions)
+		p := models.PartitionOf(jobID, totalPartitions)
 		if p < 0 || p >= totalPartitions {
 			t.Errorf("PartitionOf returned out-of-bounds partition %d for %s", p, jobID)
 		}
 		partitionsSeen[p] = true
 	}
 
-	// Check that we got multiple unique partitions (not all mapping to same slot)
 	if len(partitionsSeen) <= 1 {
 		t.Errorf("hashing distribution failure: only saw %d unique partitions", len(partitionsSeen))
 	}

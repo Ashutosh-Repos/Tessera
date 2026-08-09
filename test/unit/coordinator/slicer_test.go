@@ -1,7 +1,9 @@
-package coordinator
+package coordinator_test
 
 import (
 	"testing"
+
+	"github.com/distributed-transcoder/internal/coordinator"
 )
 
 func TestIsFaststart(t *testing.T) {
@@ -34,9 +36,9 @@ func TestIsFaststart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isFaststart(tt.prefix)
+			result := coordinator.IsFaststart(tt.prefix)
 			if result != tt.expected {
-				t.Errorf("expected isFaststart=%t, got %t", tt.expected, result)
+				t.Errorf("expected IsFaststart=%t, got %t", tt.expected, result)
 			}
 		})
 	}

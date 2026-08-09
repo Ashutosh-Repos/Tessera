@@ -190,7 +190,7 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 
 		// Rebuild bitmap from S3 object existence
 		for _, tk := range validTransKeys {
-			seg, res := parseSegmentKey(tk)
+			seg, res := ParseSegmentKey(tk)
 			bitIdx := seg*len(models.AllResolutions) + resolutionOffset(res)
 			pm.coord.state.SetBit(ctx, jobID, bitIdx)
 		}
@@ -298,7 +298,7 @@ func extractJobID(data string) string {
 	return data
 }
 
-func parseSegmentKey(key string) (int, models.Resolution) {
+func ParseSegmentKey(key string) (int, models.Resolution) {
 	base := filepath.Base(key)
 	if !strings.HasPrefix(base, "segment_") || !strings.HasSuffix(base, ".ts") {
 		return 0, models.Res1080p

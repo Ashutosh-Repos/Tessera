@@ -1,14 +1,15 @@
-package gateway
+package gateway_test
 
 import (
 	"sync"
 	"testing"
 
+	"github.com/distributed-transcoder/internal/gateway"
 	"github.com/distributed-transcoder/internal/models"
 )
 
 func TestProgressMultiplexer_SubscribeUnsubscribe(t *testing.T) {
-	pm := NewProgressMultiplexer(nil, 1000)
+	pm := gateway.NewProgressMultiplexer(nil, 1000)
 
 	ch1 := make(chan models.ProgressUpdate, 10)
 	ch2 := make(chan models.ProgressUpdate, 10)
@@ -39,7 +40,7 @@ func TestProgressMultiplexer_SubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestProgressMultiplexer_Concurrency(t *testing.T) {
-	pm := NewProgressMultiplexer(nil, 1000)
+	pm := gateway.NewProgressMultiplexer(nil, 1000)
 	var wg sync.WaitGroup
 
 	numGoroutines := 50
@@ -50,7 +51,6 @@ func TestProgressMultiplexer_Concurrency(t *testing.T) {
 		channels[i] = make(chan models.ProgressUpdate, 1)
 	}
 
-	// Concurrent Subscribes
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(idx int) {
@@ -64,7 +64,6 @@ func TestProgressMultiplexer_Concurrency(t *testing.T) {
 		t.Errorf("concurrent subscriber count = %d, want %d", count, numGoroutines)
 	}
 
-	// Concurrent Unsubscribes
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(idx int) {
