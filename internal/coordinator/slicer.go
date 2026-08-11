@@ -140,7 +140,7 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 	// Phase 4: Parallel upload + pipelined NATS dispatch + disk cleanup.
 	// ISSUE-005: Tasks are dispatched inline as each chunk uploads to S3.
 	// ISSUE-003: Chunk files are removed from disk after each upload.
-	uploadCount, err := pm.uploadSlices(ctx, jobID, tempDir)
+	uploadCount, err := pm.UploadSlices(ctx, jobID, tempDir)
 	if err != nil {
 		return 0, err
 	}
@@ -192,7 +192,7 @@ func (pm *PartitionManager) streamSlice(ctx context.Context, jobID string, prefi
 		return 0, fmt.Errorf("ffmpeg stream-slicing failed: %w", err)
 	}
 
-	return countChunkFiles(tempDir)
+	return CountChunkFiles(tempDir)
 }
 
 // downloadAndSlice downloads the raw file, corrects moov alignment, then slices.
@@ -225,30 +225,29 @@ func (pm *PartitionManager) downloadAndSlice(ctx context.Context, jobID string, 
 		return 0, fmt.Errorf("faststart relocation failed: %w", err)
 	}
 
-	// Slice the faststart output
-	sliceCtx, sliceCancel := context.WithTimeout(ctx, 10*time.Minute)
-	defer sliceCancel()
+	return pm.sliceFaststart(ctx, jobID, faststartPath, tempDir)
+}
 
-	cmd := exec.CommandContext(sliceCtx, "ffmpeg",
+func (pm *PartitionManager) sliceFaststart(ctx context.Context, jobID string, faststartPath string, tempDir string) (int, error) {
+	chunkPattern := filepath.Join(tempDir, "chunk_%03d.mp4")
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y",
 		"-i", faststartPath,
 		"-c", "copy",
+		"-map", "0",
 		"-f", "segment",
-		"-segment_format", "mp4",
-		"-segment_time", "5",
-		"-break_non_keyframes", "0",
+		"-segment_time", "2",
 		"-reset_timestamps", "1",
-		filepath.Join(tempDir, "chunk_%03d.mp4"),
+		chunkPattern,
 	)
-	cmd.SysProcAttr = platformSysProcAttr()
-	go platformParentWatchdog(sliceCtx, cmd)
-	if err := cmd.Run(); err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("ffmpeg faststart slicing failed: %s", string(output))
 		return 0, fmt.Errorf("ffmpeg slicing of faststart file failed: %w", err)
 	}
 
-	return countChunkFiles(tempDir)
+	return CountChunkFiles(tempDir)
 }
 
-func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, tempDir string) (int, error) {
+func (pm *PartitionManager) UploadSlices(ctx context.Context, jobID string, tempDir string) (int, error) {
 	files, err := os.ReadDir(tempDir)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read sliced directory: %w", err)
@@ -321,7 +320,7 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 					task := models.SegmentTask{
 						JobID:       jobID,
 						PartitionID: pm.partitionID,
-						OwnerEpoch:  pm.coord.currentEpoch,
+						OwnerEpoch:  pm.coord.CurrentEpoch,
 						SegmentIdx:  segIdx,
 						Resolution:  res,
 						RawChunkKey: destKey,
@@ -329,30 +328,32 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 						HWAccel:     pm.coord.cfg.Worker.HWAccel,
 						Priority:    "normal",
 					}
-					payload, _ := json.Marshal(task)
-					pm.coord.bus.PublishTaskAsync(gCtx, shard, task.Priority, payload)
+
+					taskBytes, err := json.Marshal(task)
+					if err != nil {
+						return fmt.Errorf("failed to marshal task: %w", err)
+					}
+
+					if err := pm.coord.bus.PublishTaskAsync(ctx, shard, task.Priority, taskBytes); err != nil {
+						return fmt.Errorf("failed to publish task: %w", err)
+					}
 				}
 			}
 
-			// ISSUE-003: Remove chunk file from disk immediately after upload
-			// and dispatch. Asset generation has already completed.
 			os.Remove(filePath)
-
 			return nil
 		})
 	}
 
 	if err := g.Wait(); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("slice upload/dispatch failed: %w", err)
 	}
 
-	// If g.Wait() returns nil, every goroutine succeeded.
-	// len(chunkFiles) is the exact segment count — no atomic counter needed.
 	return len(chunkFiles), nil
 }
 
-// countChunkFiles counts valid .mp4 chunk files in the given directory.
-func countChunkFiles(tempDir string) (int, error) {
+// CountChunkFiles counts valid .mp4 chunk files in the given directory.
+func CountChunkFiles(tempDir string) (int, error) {
 	files, err := os.ReadDir(tempDir)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read sliced directory: %w", err)

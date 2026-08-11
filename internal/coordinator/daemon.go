@@ -21,7 +21,7 @@ type CoordinatorDaemon struct {
 	coord        infra.Coordination
 	objStore     infra.ObjectStore
 	sliceSem     chan struct{} // buffered channel of size cfg.SlicingSemaphore
-	currentEpoch int64         // monotonic epoch counter, incremented on each registration
+	CurrentEpoch int64         // monotonic epoch counter, incremented on each registration
 	ctx          context.Context // daemon lifecycle context
 
 	mu         sync.Mutex
@@ -161,7 +161,7 @@ func (c *CoordinatorDaemon) selfFence() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.fenced = true
-	c.currentEpoch++
+	c.CurrentEpoch++
 
 	// Cancel all active partition managers
 	for id, pm := range c.partitions {
@@ -205,7 +205,7 @@ func (c *CoordinatorDaemon) onRingChange(activeNodes []string) {
 	for _, p := range owned {
 		if _, exists := c.partitions[p]; !exists {
 			log.Printf("Adopting partition %d", p)
-			pm := NewPartitionManager(c, p, c.currentEpoch)
+			pm := NewPartitionManager(c, p, c.CurrentEpoch)
 			c.partitions[p] = pm
 			toStart = append(toStart, newPM{id: p, pm: pm})
 		}

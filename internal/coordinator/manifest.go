@@ -27,9 +27,9 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 	status, _ := pm.coord.state.GetJobStatus(ctx, jobID)
 	if status["owner_epoch"] != "" {
 		storedEpoch := parseInt64(status["owner_epoch"])
-		if storedEpoch > pm.coord.currentEpoch {
+		if storedEpoch > pm.coord.CurrentEpoch {
 			log.Printf("epoch fencing: stale coordinator (ours=%d, stored=%d), aborting manifest for %s",
-				pm.coord.currentEpoch, storedEpoch, jobID)
+				pm.coord.CurrentEpoch, storedEpoch, jobID)
 			return
 		}
 	}
@@ -38,7 +38,7 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 	pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 		"state":        string(models.JobPhaseCompiling),
 		"last_updated": time.Now().Unix(),
-		"owner_epoch":  pm.coord.currentEpoch,
+		"owner_epoch":  pm.coord.CurrentEpoch,
 	})
 	pm.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{Phase: models.JobPhaseCompiling})
 
