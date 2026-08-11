@@ -112,8 +112,14 @@ func (n *NATSBus) PullTasks(ctx context.Context, shard int, batchSize int) ([]Ta
 	}
 	n.mu.Unlock()
 
-	msgs, err := sub.Fetch(batchSize, nats.Context(ctx))
+	msgs, err := sub.Fetch(batchSize, nats.Context(ctx), nats.MaxWait(500*time.Millisecond))
 	if err != nil {
+		// Timeout means no messages available within MaxWait; return empty
+		// instead of propagating an error so callers can loop without
+		// adding their own artificial sleep on top.
+		if err == nats.ErrTimeout {
+			return nil, nil
+		}
 		return nil, err
 	}
 
