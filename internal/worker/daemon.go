@@ -158,15 +158,6 @@ func (w *WorkerDaemon) taskPuller(ctx context.Context, shard int, taskCh chan<- 
 			continue
 		}
 
-		if len(msgs) == 0 {
-			// No messages available — backoff to avoid CPU spin
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(100 * time.Millisecond):
-			}
-			continue
-		}
 
 		for _, msg := range msgs {
 			select {
