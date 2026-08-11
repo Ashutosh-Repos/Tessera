@@ -36,7 +36,9 @@ func (pm *PartitionManager) sliceAndDispatch(ctx context.Context, jobID string) 
 	})
 	pm.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{Phase: models.JobPhaseSlicing})
 
-	// 3. Execute stream-slicing via ffmpeg
+	// 3. Execute stream-slicing, upload, and pipelined dispatch via ffmpeg
+	// ISSUE-005 fix: uploadSlices now dispatches NATS tasks inline as each
+	// chunk lands on S3, so workers begin transcoding immediately.
 	segmentCount, err := pm.executeSlicing(ctx, jobID)
 	if err != nil {
 		log.Printf("Job %s: slicing failed: %v", jobID, err)
@@ -44,39 +46,12 @@ func (pm *PartitionManager) sliceAndDispatch(ctx context.Context, jobID string) 
 		return
 	}
 
-	// 4. Update manifest with segment count
+	// 4. Update status to TRANSCODING and flush all pipelined NATS publishes
 	totalTasks := segmentCount * len(models.AllResolutions)
 	pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 		"state": string(models.JobPhaseTranscoding), "total": totalTasks,
 		"last_updated": time.Now().Unix(),
 	})
-
-	// 5. Dispatch all tasks via NATS JetStream async publish
-	for seg := 0; seg < segmentCount; seg++ {
-		for _, res := range models.AllResolutions {
-			task := models.SegmentTask{
-				JobID:       jobID,
-				PartitionID: pm.partitionID,
-				OwnerEpoch:  pm.coord.currentEpoch,
-				SegmentIdx:  seg,
-				Resolution:  res,
-				RawChunkKey: fmt.Sprintf("jobs/partition_%d/job_%s/raw/chunk_%03d.mp4", pm.partitionID, jobID, seg),
-				OutputKey:   fmt.Sprintf("jobs/partition_%d/job_%s/transcoded/segment_%03d_%s.ts", pm.partitionID, jobID, seg, res),
-				HWAccel:     pm.coord.cfg.Worker.HWAccel,
-				Priority:    "normal",
-			}
-			payload, _ := json.Marshal(task)
-			denominator := pm.coord.cfg.Coordinator.PartitionCount / pm.coord.cfg.Coordinator.NATSShardCount
-			var shard int
-			if denominator <= 0 {
-				shard = pm.partitionID % pm.coord.cfg.Coordinator.NATSShardCount
-			} else {
-				shard = pm.partitionID / denominator
-			}
-			pm.coord.bus.PublishTaskAsync(ctx, shard, task.Priority, payload)
-		}
-	}
-	// Flush all async publishes (blocks until NATS confirms all)
 	pm.coord.bus.FlushPendingPublishes(ctx)
 	pm.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{Phase: models.JobPhaseTranscoding, Total: totalTasks})
 }
@@ -112,6 +87,7 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 
 	isFast := IsFaststart(prefix)
 
+	// Phase 1: FFmpeg slicing (produces chunk files in tempDir)
 	var segmentCount int
 	if isFast {
 		log.Printf("Job %s: faststart moov atom detected. Stream-slicing from S3.", jobID)
@@ -125,7 +101,10 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 		return 0, err
 	}
 
-	// Calculate total duration using fixed segment time (5.0s) for all but the last segment
+	// Phase 2: Duration calculation and asset generation BEFORE upload.
+	// ISSUE-003 fix: uploadSlices now deletes chunk files from disk after
+	// uploading each one. Duration probing and thumbnail extraction must
+	// happen while files are still on disk.
 	var totalDuration float64
 	if segmentCount > 0 {
 		lastChunkIdx := segmentCount - 1
@@ -138,12 +117,12 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 		}
 	}
 
-	// Generate thumbnails and preview sprites
+	// Generate thumbnails and preview sprites (reads chunk files from tempDir)
 	if err := pm.generateAssets(ctx, jobID, tempDir, segmentCount, totalDuration); err != nil {
 		log.Printf("Job %s: failed to generate assets: %v", jobID, err)
 	}
 
-	// 4. Update manifest in S3 with segment count and duration
+	// Phase 3: Upload manifest to S3 with segment count and duration
 	manifest.SegmentCount = segmentCount
 	manifest.TotalTasks = segmentCount * len(models.AllResolutions)
 	manifest.DurationSec = totalDuration
@@ -158,10 +137,19 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 		return 0, fmt.Errorf("failed to upload updated manifest to S3: %w", err)
 	}
 
-	return segmentCount, nil
+	// Phase 4: Parallel upload + pipelined NATS dispatch + disk cleanup.
+	// ISSUE-005: Tasks are dispatched inline as each chunk uploads to S3.
+	// ISSUE-003: Chunk files are removed from disk after each upload.
+	uploadCount, err := pm.uploadSlices(ctx, jobID, tempDir)
+	if err != nil {
+		return 0, err
+	}
+
+	return uploadCount, nil
 }
 
 // streamSlice pipes the S3 stream directly into ffmpeg.
+// Returns the segment count by counting output chunk files (does NOT upload).
 func (pm *PartitionManager) streamSlice(ctx context.Context, jobID string, prefix []byte, remaining io.Reader, tempDir string) (int, error) {
 	sliceCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
@@ -204,7 +192,7 @@ func (pm *PartitionManager) streamSlice(ctx context.Context, jobID string, prefi
 		return 0, fmt.Errorf("ffmpeg stream-slicing failed: %w", err)
 	}
 
-	return pm.uploadSlices(ctx, jobID, tempDir)
+	return countChunkFiles(tempDir)
 }
 
 // downloadAndSlice downloads the raw file, corrects moov alignment, then slices.
@@ -257,7 +245,7 @@ func (pm *PartitionManager) downloadAndSlice(ctx context.Context, jobID string, 
 		return 0, fmt.Errorf("ffmpeg slicing of faststart file failed: %w", err)
 	}
 
-	return pm.uploadSlices(ctx, jobID, tempDir)
+	return countChunkFiles(tempDir)
 }
 
 func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, tempDir string) (int, error) {
@@ -279,10 +267,27 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 		return 0, fmt.Errorf("no segments produced by ffmpeg")
 	}
 
+	// Pre-compute NATS shard for this partition (constant across all segments)
+	denominator := pm.coord.cfg.Coordinator.PartitionCount / pm.coord.cfg.Coordinator.NATSShardCount
+	var shard int
+	if denominator <= 0 {
+		shard = pm.partitionID % pm.coord.cfg.Coordinator.NATSShardCount
+	} else {
+		shard = pm.partitionID / denominator
+	}
+
 	// Upload chunks in parallel with bounded concurrency.
 	// Limit of 10 saturates typical 1Gbps NIC without exhausting TCP sockets
 	// or triggering S3/MinIO connection throttling.
 	// If any single upload fails, gCtx is cancelled, aborting all in-flight uploads.
+	//
+	// ISSUE-005 fix: Each goroutine dispatches NATS transcode tasks inline
+	// immediately after its PutObject succeeds. Workers begin transcoding
+	// chunk_000 while chunk_010 is still uploading.
+	//
+	// ISSUE-003 fix: Each goroutine removes its chunk file from disk after
+	// uploading, preventing SSD I/O accumulation. Asset generation and
+	// duration probing have already completed before this function is called.
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(10)
 
@@ -294,17 +299,45 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 			if err != nil {
 				return fmt.Errorf("failed to open segment %s: %w", file.Name(), err)
 			}
-			defer f.Close()
 
 			stat, err := f.Stat()
 			if err != nil {
+				f.Close()
 				return fmt.Errorf("failed to stat segment %s: %w", file.Name(), err)
 			}
 
 			destKey := fmt.Sprintf("jobs/partition_%d/job_%s/raw/%s", pm.partitionID, jobID, file.Name())
 			if err := pm.coord.objStore.PutObject(gCtx, destKey, f, stat.Size()); err != nil {
+				f.Close()
 				return fmt.Errorf("failed to upload segment %s to S3: %w", file.Name(), err)
 			}
+			f.Close()
+
+			// ISSUE-005: Pipelined dispatch — publish transcode tasks to NATS
+			// the instant this chunk lands on S3.
+			var segIdx int
+			if _, scanErr := fmt.Sscanf(file.Name(), "chunk_%03d.mp4", &segIdx); scanErr == nil {
+				for _, res := range models.AllResolutions {
+					task := models.SegmentTask{
+						JobID:       jobID,
+						PartitionID: pm.partitionID,
+						OwnerEpoch:  pm.coord.currentEpoch,
+						SegmentIdx:  segIdx,
+						Resolution:  res,
+						RawChunkKey: destKey,
+						OutputKey:   fmt.Sprintf("jobs/partition_%d/job_%s/transcoded/segment_%03d_%s.ts", pm.partitionID, jobID, segIdx, res),
+						HWAccel:     pm.coord.cfg.Worker.HWAccel,
+						Priority:    "normal",
+					}
+					payload, _ := json.Marshal(task)
+					pm.coord.bus.PublishTaskAsync(gCtx, shard, task.Priority, payload)
+				}
+			}
+
+			// ISSUE-003: Remove chunk file from disk immediately after upload
+			// and dispatch. Asset generation has already completed.
+			os.Remove(filePath)
+
 			return nil
 		})
 	}
@@ -316,6 +349,25 @@ func (pm *PartitionManager) uploadSlices(ctx context.Context, jobID string, temp
 	// If g.Wait() returns nil, every goroutine succeeded.
 	// len(chunkFiles) is the exact segment count — no atomic counter needed.
 	return len(chunkFiles), nil
+}
+
+// countChunkFiles counts valid .mp4 chunk files in the given directory.
+func countChunkFiles(tempDir string) (int, error) {
+	files, err := os.ReadDir(tempDir)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read sliced directory: %w", err)
+	}
+	count := 0
+	for _, file := range files {
+		if file.IsDir() || filepath.Ext(file.Name()) != ".mp4" || file.Name() == "faststart.mp4" {
+			continue
+		}
+		count++
+	}
+	if count == 0 {
+		return 0, fmt.Errorf("no segments produced by ffmpeg")
+	}
+	return count, nil
 }
 
 func (pm *PartitionManager) markJobFailed(ctx context.Context, jobID, reason string) {
