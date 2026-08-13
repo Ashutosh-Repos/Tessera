@@ -47,15 +47,20 @@ func (gc *JobGCDaemon) scanForStaleJobs(ctx context.Context) {
 			}
 
 			lastUpdated := parseInt64(status["last_updated"])
+			if lastUpdated <= 0 {
+				continue
+			}
 			if now-lastUpdated > gc.staleThreshSec {
 				log.Printf("Job %s in partition %d is stale (inactive for %ds), marking failed", jobID, pid, now-lastUpdated)
 
 				// Mark as failed
-				gc.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
+				if err := gc.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 					"state":        string(models.JobPhaseFailed),
 					"error":        "job timed out",
 					"last_updated": now,
-				})
+				}); err != nil {
+					log.Printf("GC Job %s: failed to update status to failed: %v", jobID, err)
+				}
 				gc.coord.state.PublishProgress(ctx, jobID, models.ProgressUpdate{
 					Phase: models.JobPhaseFailed,
 					Error: "job timed out due to inactivity",

@@ -16,10 +16,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (pm *PartitionManager) sliceJob(ctx context.Context, jobID string) {
-	pm.sliceAndDispatch(ctx, jobID)
-}
-
 func (pm *PartitionManager) sliceAndDispatch(ctx context.Context, jobID string) {
 	// 1. Acquire etcd slicing lock
 	acquired, _ := pm.coord.coord.AcquireSlicingLock(ctx, jobID, pm.coord.nodeID,

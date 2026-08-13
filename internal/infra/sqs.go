@@ -339,11 +339,11 @@ func (s *SQSBus) pollEventsLoop(ctx context.Context, queueURL string, filterTag 
 						},
 					})
 				} else {
-					// Delete/Ack event if it belongs to other partitions so it doesn't plug the queue
-					// Standard pub-sub mapping design choice.
-					_, _ = s.client.DeleteMessage(ctx, &sqs.DeleteMessageInput{
-						QueueUrl:      aws.String(queueURL),
-						ReceiptHandle: m.ReceiptHandle,
+					// Release message immediately back to queue for other partition managers
+					_, _ = s.client.ChangeMessageVisibility(ctx, &sqs.ChangeMessageVisibilityInput{
+						QueueUrl:          aws.String(queueURL),
+						ReceiptHandle:     m.ReceiptHandle,
+						VisibilityTimeout: 0,
 					})
 				}
 			}

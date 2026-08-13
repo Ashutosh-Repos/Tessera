@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,26 +28,49 @@ func (pm *PartitionManager) generateAssets(ctx context.Context, jobID string, te
 	}
 
 	// 1. Extract sprite cell frames (160x90) from each segment chunk
-	var cellPaths []string
 	step := 1
 	if segmentCount > 100 {
 		step = segmentCount / 100
 	}
 
-	for i := 0; i < segmentCount; i += step {
-		chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%03d.mp4", i))
-		cellPath := filepath.Join(tempDir, fmt.Sprintf("cell_%03d.jpg", i))
+	numCells := (segmentCount - 1) / step + 1
+	cellPaths := make([]string, numCells)
+	sem := make(chan struct{}, 4)
+	var wg sync.WaitGroup
 
-		// Execute ffmpeg to grab the first frame of the segment
-		cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", chunkPath, "-vframes", "1", "-vf",
-			"scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2", cellPath)
-		cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
-		if err := cmd.Run(); err != nil {
-			log.Printf("Job %s: failed to extract sprite cell for segment %d: %v", jobID, i, err)
-			continue
-		}
-		cellPaths = append(cellPaths, cellPath)
+	idx := 0
+	for i := 0; i < segmentCount; i += step {
+		wg.Add(1)
+		go func(i, idx int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%03d.mp4", i))
+			cellPath := filepath.Join(tempDir, fmt.Sprintf("cell_%03d.jpg", i))
+
+			// Execute ffmpeg to grab the first frame of the segment
+			cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", chunkPath, "-vframes", "1", "-vf",
+				"scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2", cellPath)
+			cmd.SysProcAttr = platformSysProcAttr() // M-3 fix
+			if err := cmd.Run(); err != nil {
+				log.Printf("Job %s: failed to extract sprite cell for segment %d: %v", jobID, i, err)
+				return
+			}
+			cellPaths[idx] = cellPath
+		}(i, idx)
+		idx++
 	}
+	wg.Wait()
+
+	// Filter out any missing cells if some failed
+	var validCellPaths []string
+	for _, p := range cellPaths {
+		if p != "" {
+			validCellPaths = append(validCellPaths, p)
+		}
+	}
+	cellPaths = validCellPaths
 
 	if len(cellPaths) == 0 {
 		return fmt.Errorf("failed to extract any sprite cells")

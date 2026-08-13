@@ -151,13 +151,15 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 
 		if manifest.SegmentCount == 0 {
 			log.Printf("partition %d: adopted job %s is not yet sliced. Triggering slicing.", pm.partitionID, jobID)
-			pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
+			if err := pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 				"state":        string(models.JobPhaseCreated),
 				"completed":    0,
 				"total":        0,
 				"partition":    pm.partitionID,
 				"last_updated": time.Now().Unix(),
-			})
+			}); err != nil {
+				log.Printf("partition %d: failed to set job status for %s: %v", pm.partitionID, jobID, err)
+			}
 			go pm.sliceAndDispatch(ctx, jobID)
 			continue
 		}
@@ -182,13 +184,15 @@ func (pm *PartitionManager) reconstructFromS3(ctx context.Context) {
 			totalTasks = len(manifest.Resolutions) * 1 // fallback
 		}
 
-		pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
+		if err := pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 			"state":        string(models.JobPhaseTranscoding),
 			"completed":    completed,
 			"total":        totalTasks,
 			"partition":    pm.partitionID,
 			"last_updated": time.Now().Unix(),
-		})
+		}); err != nil {
+			log.Printf("partition %d: failed to set job status for %s: %v", pm.partitionID, jobID, err)
+		}
 
 		// Rebuild bitmap from S3 object existence
 		for _, tk := range validTransKeys {

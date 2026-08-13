@@ -28,7 +28,7 @@ type WorkerDaemon struct {
 }
 
 func NewWorkerDaemon(cfg config.Config, state infra.StateStore, objStore infra.ObjectStore, bus infra.MessageBus) *WorkerDaemon {
-	breaker := NewCircuitBreaker(5, 3) // 3 failures in 5s
+	breaker := NewCircuitBreaker(cfg.Worker.CircuitBreakerWindow, cfg.Worker.CircuitBreakerThresh)
 	executor := NewTaskExecutor(state, objStore, cfg, breaker)
 
 	pCtx, pCancel := context.WithCancel(context.Background())
@@ -46,19 +46,20 @@ func NewWorkerDaemon(cfg config.Config, state infra.StateStore, objStore infra.O
 
 func (w *WorkerDaemon) Run(ctx context.Context) error {
 	taskCh := make(chan infra.TaskMessage, w.cfg.Worker.ConcurrentTasks*2)
+	var pullerWg sync.WaitGroup
 
 	// Start task pullers (1 per shard assigned to this worker)
 	// For simplicity in this LLD implementation, we'll pull from shards 0 to PartitionCount
 	// In reality, this would be dynamically assigned or worker listens to all shards.
 	for i := 0; i < w.cfg.Coordinator.NATSShardCount; i++ {
-		w.wg.Add(1)
-		go w.taskPuller(w.pullersCtx, i, taskCh)
+		pullerWg.Add(1)
+		go w.taskPuller(w.pullersCtx, i, taskCh, &pullerWg)
 	}
 
 	// Start executor pool
 	for i := 0; i < w.cfg.Worker.ConcurrentTasks; i++ {
 		w.wg.Add(1)
-		go w.executorWorker(ctx, taskCh)
+		go w.executorWorker(taskCh)
 	}
 
 	log.Printf("Worker %s started with %d concurrent tasks", w.cfg.NodeID, w.cfg.Worker.ConcurrentTasks)
@@ -105,6 +106,10 @@ func (w *WorkerDaemon) Run(ctx context.Context) error {
 	// 1. Stop pulling new tasks from NATS
 	w.stopPullers()
 
+	// Wait for pullers to finish, then close the task channel
+	pullerWg.Wait()
+	close(taskCh)
+
 	// 2. Wait for in-flight tasks to complete (up to GracefulDrainSec minutes)
 	drainCtx, drainCancel := context.WithTimeout(context.Background(),
 		time.Duration(w.cfg.Worker.GracefulDrainSec)*time.Second)
@@ -128,8 +133,8 @@ func (w *WorkerDaemon) Run(ctx context.Context) error {
 	return nil
 }
 
-func (w *WorkerDaemon) taskPuller(ctx context.Context, shard int, taskCh chan<- infra.TaskMessage) {
-	defer w.wg.Done()
+func (w *WorkerDaemon) taskPuller(ctx context.Context, shard int, taskCh chan<- infra.TaskMessage, wg *sync.WaitGroup) {
+	defer wg.Done()
 	
 	for {
 		select {
@@ -159,49 +164,47 @@ func (w *WorkerDaemon) taskPuller(ctx context.Context, shard int, taskCh chan<- 
 		}
 
 
-		for _, msg := range msgs {
+		for i, msg := range msgs {
 			select {
 			case taskCh <- msg:
 			case <-ctx.Done():
-				msg.Nak()
+				// NAK all remaining messages
+				for j := i; j < len(msgs); j++ {
+					msgs[j].Nak()
+				}
 				return
 			}
 		}
 	}
 }
 
-func (w *WorkerDaemon) executorWorker(ctx context.Context, taskCh <-chan infra.TaskMessage) {
+func (w *WorkerDaemon) executorWorker(taskCh <-chan infra.TaskMessage) {
 	defer w.wg.Done()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case msg := <-taskCh:
-			if msg == nil {
-				continue
-			}
+	for msg := range taskCh {
+		if msg == nil {
+			continue
+		}
 
-			var segmentTask models.SegmentTask
-			if err := json.Unmarshal(msg.Data(), &segmentTask); err != nil {
-				log.Printf("failed to unmarshal task: %v", err)
-				msg.Ack() // Invalid payload, discard
-				continue
-			}
+		var segmentTask models.SegmentTask
+		if err := json.Unmarshal(msg.Data(), &segmentTask); err != nil {
+			log.Printf("failed to unmarshal task: %v", err)
+			msg.Ack() // Invalid payload, discard
+			continue
+		}
 
-			atomic.AddInt32(&w.activeTasks, 1)
-			err := w.executor.Execute(ctx, msg, segmentTask)
-			atomic.AddInt32(&w.activeTasks, -1)
-			if err != nil {
-				log.Printf("Task execution failed: %v", err)
-				msg.Nak()
-			} else {
-				// Resilient fallback completion event to coordinator
-				completionSubject := fmt.Sprintf("s3-transcoded.job.partition_%d.job_%s", segmentTask.PartitionID, segmentTask.JobID)
-				eventBytes, _ := json.Marshal(segmentTask)
-				if err := w.bus.PublishEvent(ctx, completionSubject, eventBytes); err != nil {
-					log.Printf("Failed to publish completion event: %v", err)
-				}
+		atomic.AddInt32(&w.activeTasks, 1)
+		err := w.executor.Execute(context.Background(), msg, segmentTask)
+		atomic.AddInt32(&w.activeTasks, -1)
+		if err != nil {
+			log.Printf("Task execution failed: %v", err)
+			msg.Nak()
+		} else {
+			// Resilient fallback completion event to coordinator
+			completionSubject := fmt.Sprintf("s3-transcoded.job.partition_%d.job_%s", segmentTask.PartitionID, segmentTask.JobID)
+			eventBytes, _ := json.Marshal(segmentTask)
+			if err := w.bus.PublishEvent(context.Background(), completionSubject, eventBytes); err != nil {
+				log.Printf("Failed to publish completion event: %v", err)
 			}
 		}
 	}

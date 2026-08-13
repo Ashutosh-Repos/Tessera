@@ -54,7 +54,10 @@ func (pm *ProgressMultiplexer) Unsubscribe(jobID string, ch chan<- models.Progre
 	subs := pm.subscribers[jobID]
 	for i, s := range subs {
 		if s == ch {
-			pm.subscribers[jobID] = append(subs[:i], subs[i+1:]...)
+			newSubs := make([]chan<- models.ProgressUpdate, 0, len(subs)-1)
+			newSubs = append(newSubs, subs[:i]...)
+			newSubs = append(newSubs, subs[i+1:]...)
+			pm.subscribers[jobID] = newSubs
 			break
 		}
 	}

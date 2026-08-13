@@ -77,3 +77,12 @@ func (hr *HashRing) OwnedPartitions(nodeID string, totalPartitions int) []int {
 	}
 	return owned
 }
+
+// Members returns a thread-safe copy of the active coordinator node IDs.
+func (hr *HashRing) Members() []string {
+	hr.mu.RLock()
+	defer hr.mu.RUnlock()
+	members := make([]string, len(hr.members))
+	copy(members, hr.members)
+	return members
+}

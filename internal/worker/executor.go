@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -78,10 +77,9 @@ func (te *TaskExecutor) Execute(ctx context.Context, msg infra.TaskMessage, task
 	// Launch macOS parent-death watchdog (no-op on Linux where Pdeathsig handles it)
 	go platformParentWatchdog(transcodeCtx, cmd)
 
-	// ──── Step 5: Launch Watchdog on dedicated OS thread ────
+	// ──── Step 5: Launch Watchdog ────
 	watchdogDone := make(chan struct{})
 	go func() {
-		runtime.LockOSThread()
 		defer close(watchdogDone)
 		te.runWatchdog(transcodeCtx, cmd, localOutput)
 	}()

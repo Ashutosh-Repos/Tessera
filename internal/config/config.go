@@ -163,5 +163,31 @@ func LoadConfig(path string) (Config, error) {
 	// Propagate NodeID to worker config to avoid LLD B-7 compile errors
 	cfg.Worker.NodeID = cfg.NodeID
 
+	// Gateway defaults
+	if cfg.Gateway.RateLimitPerIP == 0 { cfg.Gateway.RateLimitPerIP = 100 }
+	if cfg.Gateway.RateLimitPerUser == 0 { cfg.Gateway.RateLimitPerUser = 500 }
+	if cfg.Gateway.MultiplexBatchMs == 0 { cfg.Gateway.MultiplexBatchMs = 1000 }
+
+	// Coordinator defaults
+	if cfg.Coordinator.PartitionCount == 0 { cfg.Coordinator.PartitionCount = 1024 }
+	if cfg.Coordinator.SlicingSemaphore == 0 { cfg.Coordinator.SlicingSemaphore = 50 }
+	if cfg.Coordinator.NATSShardCount == 0 { cfg.Coordinator.NATSShardCount = 4 }
+	if cfg.Coordinator.EtcdLeaseTTLSec == 0 { cfg.Coordinator.EtcdLeaseTTLSec = 5 }
+	if cfg.Coordinator.SlicingLockTTLSec == 0 { cfg.Coordinator.SlicingLockTTLSec = 10 }
+	if cfg.Coordinator.SelfFenceThreshSec == 0 { cfg.Coordinator.SelfFenceThreshSec = 3 }
+	if cfg.Coordinator.TakeoverGraceSec == 0 { cfg.Coordinator.TakeoverGraceSec = 10 }
+	if cfg.Coordinator.GCIntervalMin == 0 { cfg.Coordinator.GCIntervalMin = 10 }
+	if cfg.Coordinator.GCStaleThreshHours == 0 { cfg.Coordinator.GCStaleThreshHours = 24 }
+
+	// Worker defaults
+	if cfg.Worker.ConcurrentTasks == 0 { cfg.Worker.ConcurrentTasks = 50 }
+	if cfg.Worker.MinDiskFreeGB == 0 { cfg.Worker.MinDiskFreeGB = 10 }
+	if cfg.Worker.WatchdogIntervalSec == 0 { cfg.Worker.WatchdogIntervalSec = 10 }
+	if cfg.Worker.MaxTaskDurationMin == 0 { cfg.Worker.MaxTaskDurationMin = 5 }
+	if cfg.Worker.MaxTempFileSizeGB == 0 { cfg.Worker.MaxTempFileSizeGB = 3 }
+	if cfg.Worker.GracefulDrainSec == 0 { cfg.Worker.GracefulDrainSec = 300 }
+	if cfg.Worker.CircuitBreakerWindow == 0 { cfg.Worker.CircuitBreakerWindow = 5 }
+	if cfg.Worker.CircuitBreakerThresh == 0 { cfg.Worker.CircuitBreakerThresh = 3 }
+
 	return cfg, nil
 }

@@ -13,15 +13,6 @@ import (
 	"github.com/distributed-transcoder/internal/models"
 )
 
-func (pm *PartitionManager) compileManifest(ctx context.Context, jobID string) {
-	status, err := pm.coord.state.GetJobStatus(ctx, jobID)
-	if err != nil {
-		return
-	}
-	total := parseInt(status["total"])
-	pm.compileManifests(ctx, jobID, total)
-}
-
 func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, totalTasks int) {
 	// I-3 fix: Epoch fencing — abort if we are a stale coordinator
 	status, _ := pm.coord.state.GetJobStatus(ctx, jobID)

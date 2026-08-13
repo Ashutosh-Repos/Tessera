@@ -150,7 +150,7 @@ func (c *CoordinatorDaemon) runEtcdRegistration(ctx context.Context) {
 					c.mu.Lock()
 					c.fenced = false
 					c.mu.Unlock()
-					c.onRingChange(c.ring.members) // Re-evaluate partitions
+					c.onRingChange(c.ring.Members()) // Re-evaluate partitions
 				}
 			}
 		}

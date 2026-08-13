@@ -92,3 +92,27 @@ func TestNormalizeJobID(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateTotalParts(t *testing.T) {
+	partSize := int64(50 * 1024 * 1024) // 50MB
+	tests := []struct {
+		name     string
+		fileSize int64
+		expected int
+	}{
+		{"exact multiple", 100 * 1024 * 1024, 2},
+		{"just under multiple", 100*1024*1024 - 1, 2},
+		{"just over multiple", 100*1024*1024 + 1, 3},
+		{"less than one part", 1024 * 1024, 1},
+		{"zero size", 0, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := gateway.CalculateTotalParts(tt.fileSize, partSize)
+			if got != tt.expected {
+				t.Errorf("CalculateTotalParts(%d) = %d, want %d", tt.fileSize, got, tt.expected)
+			}
+		})
+	}
+}

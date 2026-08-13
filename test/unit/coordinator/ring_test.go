@@ -97,3 +97,21 @@ func TestHashRing_ConcurrentReadRebuild(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestHashRing_Members(t *testing.T) {
+	ring := coordinator.NewHashRing()
+	nodes := []string{"node-1", "node-2", "node-3"}
+	ring.Rebuild(nodes)
+
+	members := ring.Members()
+	if len(members) != 3 {
+		t.Fatalf("expected 3 members, got %d", len(members))
+	}
+
+	// Verify it's a copy
+	members[0] = "mutated"
+	members2 := ring.Members()
+	if members2[0] == "mutated" {
+		t.Errorf("Members() returned a reference to the internal slice, expected a copy")
+	}
+}

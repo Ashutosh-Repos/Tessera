@@ -24,6 +24,10 @@ const (
 	MaxUploadSizeBytes int64 = 50 * 1024 * 1024 * 1024 // 50 GB
 )
 
+func CalculateTotalParts(fileSizeBytes int64, partSizeBytes int64) int {
+	return int((fileSizeBytes + partSizeBytes - 1) / partSizeBytes)
+}
+
 func ValidateUploadRequest(req models.CreateSessionRequest) error {
 	if req.FileSizeBytes <= 0 {
 		return fmt.Errorf("file size must be positive")
@@ -49,9 +53,6 @@ func (g *GatewayDaemon) handleCreateSession(w http.ResponseWriter, r *http.Reque
 	atomic.AddInt64(&g.uploadCount, 1)
 	jobID := fmt.Sprintf("%s:%s", g.cfg.Region, uuid.New().String())
 	partitionCount := g.cfg.Coordinator.PartitionCount
-	if partitionCount == 0 {
-		partitionCount = 1024
-	}
 	partitionID := models.PartitionOf(jobID, partitionCount)
 
 	s3Key := fmt.Sprintf("jobs/partition_%d/job_%s/raw/source.mp4", partitionID, jobID)
@@ -102,7 +103,7 @@ func (g *GatewayDaemon) handleCreateSession(w http.ResponseWriter, r *http.Reque
 	})
 	tokenStr, _ := token.SignedString([]byte(g.cfg.Gateway.JWTSecret))
 
-	totalParts := int(req.FileSizeBytes/(50*1024*1024)) + 1
+	totalParts := CalculateTotalParts(req.FileSizeBytes, 50*1024*1024)
 
 	session := models.UploadSession{
 		JobID:        jobID,
@@ -140,8 +141,8 @@ func (g *GatewayDaemon) handlePresignedBatch(w http.ResponseWriter, r *http.Requ
 
 	startPart, _ := strconv.Atoi(r.URL.Query().Get("start"))
 	count, _ := strconv.Atoi(r.URL.Query().Get("count"))
-	if startPart <= 0 || count <= 0 || count > 100 {
-		http.Error(w, "Invalid start or count", http.StatusBadRequest)
+	if startPart <= 0 || count <= 0 || count > 100 || (startPart+count-1) > 10000 {
+		http.Error(w, "Invalid start or count. Parts must be between 1 and 10000", http.StatusBadRequest)
 		return
 	}
 
@@ -179,6 +180,32 @@ func (g *GatewayDaemon) handleGetStatus(w http.ResponseWriter, r *http.Request) 
 
 func (g *GatewayDaemon) handleWebSocketOrSSE(w http.ResponseWriter, r *http.Request) {
 	uuidParam := r.PathValue("uuid")
+
+	// Validate JWT if secret is set
+	if g.cfg.Gateway.JWTSecret != "" {
+		tokenStr := r.URL.Query().Get("token")
+		if tokenStr == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenStr = authHeader[7:]
+			}
+		}
+
+		if tokenStr == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		claims := &models.UploadSessionClaims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(g.cfg.Gateway.JWTSecret), nil
+		})
+
+		if err != nil || !token.Valid || claims.JobID != uuidParam {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
 
 	// Set up Server-Sent Events (SSE) since full WebSocket implementation is large
 	w.Header().Set("Content-Type", "text/event-stream")
