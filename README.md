@@ -43,7 +43,7 @@
 - [📂 Repository Structure](#-repository-structure)
 - [📖 Documentation](#-documentation)
 - [🤝 Contributing & Community Roadmap](#-contributing--community-roadmap)
-- [⭐ Star History](#-star-history)
+- [⭐ Community & Support](#-community--support)
 - [📄 License](#-license)
 
 ---
@@ -677,7 +677,7 @@ To contribute:
 
 ---
 
-## ⭐ Star History
+## ⭐ Community & Support
 
 If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please consider giving the repository a star!
 
@@ -685,11 +685,13 @@ If you find Tessera helpful for eliminating video transcoding costs or building 
   <a href="https://github.com/Ashutosh-Repos/Tessera/stargazers">
     <img src="https://img.shields.io/github/stars/Ashutosh-Repos/Tessera?style=for-the-badge&logo=github&color=238636" alt="GitHub Stars" />
   </a>
-</p>
-
-<p align="center">
-  <a href="https://star-history.com/#ashutosh-repos/tessera&Date">
-    <img src="https://api.star-history.com/svg?repos=ashutosh-repos/tessera&type=Date&theme=dark" alt="Tessera Star History Chart" width="100%" />
+  &nbsp;
+  <a href="https://github.com/Ashutosh-Repos/Tessera/network/members">
+    <img src="https://img.shields.io/github/forks/Ashutosh-Repos/Tessera?style=for-the-badge&logo=github&color=1f6feb" alt="GitHub Forks" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/Ashutosh-Repos/Tessera/discussions">
+    <img src="https://img.shields.io/badge/Discussions-Join%20Chat-8957e5?style=for-the-badge&logo=github" alt="GitHub Discussions" />
   </a>
 </p>
 
