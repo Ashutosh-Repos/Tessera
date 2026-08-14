@@ -1,0 +1,222 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/coderabbit-overrides.v2.json
+# ==============================================================================
+# CodeRabbit AI Configuration
+# Project: Distributed Video Transcoder (Go Backend + Next.js / React Frontend Monorepo)
+# Documentation: https://docs.coderabbit.ai/guides/configure-coderabbit
+# ==============================================================================
+
+version: "2"
+language: "en-US"
+early_access: false
+
+reviews:
+  # Review profile:
+  # - "quiet": Minimal noise, focuses strictly on bugs, critical vulnerabilities & breaking changes.
+  # - "chill": Balanced feedback on architecture, edge-cases, error handling & performance (Recommended).
+  # - "assertive": Deep analysis including style, naming conventions, docstrings, and nitpicks.
+  profile: "chill"
+
+  # Auto-approval: Automatically approve PR once all CodeRabbit discussions are resolved and CI passes
+  request_changes_workflow: false
+
+  # High-level PR summary & Release notes
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  high_level_summary_instructions: >-
+    Provide a structured summary focusing on:
+    1. Architectural impact (Coordinator, Worker, Gateway, NATS/Redis/S3 messaging contracts).
+    2. Frontend/SDK changes (UI SDK components, Admin Console, Developer Portal).
+    3. Breaking changes, concurrency implications, or configuration/deployment schema updates.
+
+  # PR Title configuration (Conventional Commits enforcement)
+  auto_title: false
+  auto_title_placeholder: "@coderabbitai"
+  auto_title_instructions: >-
+    Generate conventional commit titles matching the format:
+    <type>(<scope>): <short description>
+    Examples:
+    - feat(coordinator): implement chunk retry with exponential backoff
+    - fix(worker): prevent ffmpeg zombie processes on task cancellation
+    - perf(ui-sdk): optimize video playback event listener re-renders
+
+  # Review metadata & status reporting
+  review_status: true
+  review_details: true
+  review_progress: true
+  commit_status: true
+  fail_commit_status: false
+
+  # Walkthrough & Visual diagrams
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+
+  # Smart PR Labeling rules
+  suggested_labels: true
+  auto_apply_labels: false
+  labeling_instructions:
+    - label: "area:coordinator"
+      instructions: "Apply when changes touch internal/coordinator/ or task scheduling logic."
+    - label: "area:worker"
+      instructions: "Apply when changes touch internal/worker/, ffmpeg pipeline, or transcoding executors."
+    - label: "area:gateway"
+      instructions: "Apply when changes touch internal/gateway/, API routes, or auth middleware."
+    - label: "area:infra"
+      instructions: "Apply when changes touch internal/infra/, NATS, Redis, S3, etcd, or Docker/Compose files."
+    - label: "area:frontend"
+      instructions: "Apply when changes touch developer-portal/, admin-console/, or ui-sdk/."
+    - label: "type:security"
+      instructions: "Apply when changes affect JWT auth, secrets, CORS, input sanitization, or container privileges."
+    - label: "type:performance"
+      instructions: "Apply when changes optimize memory allocations, transcoding throughput, or caching."
+    - label: "type:testing"
+      instructions: "Apply when changes add or update unit, integration, benchmark, or mock tests in test/."
+    - label: "type:docs"
+      instructions: "Apply when changes update docs/, docs-theory/, or README files."
+
+  # Reviewer suggestions
+  suggested_reviewers: true
+  auto_assign_reviewers: false
+
+  # AI integration & Prompts
+  # Injects a ready-to-run prompt block in comments for AI coding agents (Copilot, Cursor, Antigravity)
+  prompt_for_ai_agents: true
+
+  # Interactive extras
+  poem: false
+  in_progress_fortune: false
+
+  # ============================================================================
+  # Path Filters: Exclude noise, generated artifacts, logs, lockfiles, & binaries
+  # ============================================================================
+  path_filters:
+    - "!**/*.min.js"
+    - "!**/*.min.css"
+    - "!**/*.map"
+    - "!**/*.log"
+    - "!dev-*.log"
+    - "!**/node_modules/**"
+    - "!**/.next/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/coverage/**"
+    - "!go.sum"
+    - "!package-lock.json"
+    - "!yarn.lock"
+    - "!pnpm-lock.yaml"
+    - "!test/fixtures/**/*.{mp4,mkv,ts,avi,webm,mov,flv}"
+    - "!**/*.{svg,png,jpg,jpeg,ico,webp,gif,wasm,pdf}"
+    - "!**/.DS_Store"
+
+  # ============================================================================
+  # Path-Specific Code Review Instructions
+  # ============================================================================
+  path_instructions:
+    # 1. Distributed Coordinator & Task Orchestration
+    - path: "internal/coordinator/**"
+      instructions: >-
+        Review for distributed systems safety:
+        - Verify task state transitions are atomic and idempotent.
+        - Check for mutex deadlocks, race conditions, or unbuffered channel deadlocks.
+        - Ensure worker heartbeat timeouts, lease renewals, and failure failover logic are robust.
+        - Validate etcd / Redis leader election and distributed lock release patterns (always defer unlock with timeout checks).
+
+    # 2. Worker Engine & FFmpeg Transcoding Pipeline
+    - path: "internal/worker/**"
+      instructions: >-
+        Review for resource leaks and execution safety:
+        - Check context cancellation handling during long-running FFmpeg child process executions.
+        - Prevent zombie processes; ensure `exec.CommandContext` kills subprocess trees properly on SIGTERM/SIGINT.
+        - Validate disk cleanup (temp chunk files must be deleted in defer / error paths).
+        - Verify memory-safe chunk buffering and graceful backpressure handling.
+
+    # 3. API Gateway & Security
+    - path: "internal/gateway/**"
+      instructions: >-
+        Review for security and API standards:
+        - Check JWT signature verification, claims validation, and token expiration handling.
+        - Ensure strict input validation on video upload endpoints (file size limits, mime-type checking).
+        - Validate rate-limiting middlewares, CORS headers, and sanitized error messages (no internal stack traces exposed to clients).
+
+    # 4. Storage & Messaging Infrastructure (S3, NATS, Redis, etcd)
+    - path: "internal/infra/**"
+      instructions: >-
+        Review for resilience and connection lifecycle:
+        - Verify S3 multipart upload error handling and abort cleanup for incomplete uploads.
+        - Check NATS JetStream consumer acknowledgment patterns (ack / nack / term) and reconnect policies.
+        - Ensure Redis connection pool configs and context deadlines on all network operations.
+
+    # 5. OpenTelemetry Tracing & Prometheus Metrics
+    - path: "internal/metrics/**"
+      instructions: >-
+        Review for metrics best practices:
+        - Verify metric label cardinality to prevent Prometheus memory exhaustion (never use dynamic IDs / URLs as labels).
+        - Ensure counter vs gauge vs histogram types are correctly chosen for transcoding durations.
+
+    - path: "internal/tracing/**"
+      instructions: >-
+        Ensure OpenTelemetry trace context is injected/extracted across NATS messages and HTTP headers.
+
+    # 6. Next.js Developer Portal
+    - path: "developer-portal/**"
+      instructions: >-
+        Review for Next.js (App Router) & React best practices:
+        - Verify proper separation of Server Components and Client Components ('use client').
+        - Check API routes for server-side auth validation and secret safety (never leak private API keys to client).
+        - Validate responsive UI with Tailwind CSS and Next.js Image/Font optimization.
+
+    # 7. React UI SDK & Admin Console
+    - path: "ui-sdk/**"
+      instructions: >-
+        Review for library quality:
+        - Ensure React hook dependencies (`useEffect`, `useCallback`, `useMemo`) are exhaustive.
+        - Check event listeners (video playback, progress updates) are properly cleaned up on unmount.
+        - Maintain strict TypeScript typings without `any` casts.
+        - Ensure ARIA accessibility for custom video player controls.
+
+    - path: "admin-console/**"
+      instructions: >-
+        Review for real-time dashboard performance:
+        - Ensure WebSocket / SSE subscriptions for cluster health reconnect gracefully.
+        - Check state management to avoid unnecessary re-rendering during high-frequency telemetry updates.
+
+    # 8. Testing Suite
+    - path: "test/**"
+      instructions: >-
+        Review test quality:
+        - Confirm unit tests do not rely on live external services (use `test/mocks/`).
+        - Ensure integration tests clean up test resources (S3 test buckets, Redis keys).
+        - Check that tests are deterministic and runnable with `go test -race ./...`.
+
+    # 9. Docker & Deployment Configurations
+    - path: "{Dockerfile,docker-compose*.yml,configs/**,scripts/**}"
+      instructions: >-
+        Review deployment configurations:
+        - Ensure multi-stage Docker builds minimize final image sizes and run as non-root users.
+        - Check that docker-compose files do not commit hardcoded production secrets.
+        - Verify container healthchecks and restart policies.
+
+  # PR Lifecycle
+  abort_on_close: true
+  disable_cache: false
+
+  # Anti-Slop & Low-Quality PR Guard
+  anti_slop:
+    enabled: true
+    label: "slop"
+
+# Inline Chat & Assistant Behavior
+chat:
+  auto_reply: true
+
+# Continuous Learning & Knowledge Base
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "org"
+
