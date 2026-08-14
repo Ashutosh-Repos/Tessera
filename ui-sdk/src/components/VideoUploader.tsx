@@ -90,47 +90,52 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       
       setJobId(jId);
 
-      // Step 2: Get Presigned URLs
-      setStatusMessage('Requesting Presigned URLs...');
-      const urlsRes = await fetch(`${gatewayUrl}/api/jobs/${jId}/urls?start=1&count=${totalParts}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!urlsRes.ok) throw new Error('Failed to get presigned URLs');
-      const urlsData = await urlsRes.json();
-
-      // Step 3: Chunk and Upload
+      // Step 2 & 3: Chunk and Upload with Batched Presigned URLs (max 100 parts/batch)
       setStatusMessage('Uploading Media Chunks...');
       const uploadedParts = [];
       let uploadedBytes = 0;
+      const batchSize = 100;
 
-      for (let i = 0; i < totalParts; i++) {
-        const start = i * partSize;
-        const end = Math.min(start + partSize, file.size);
-        const chunk = file.slice(start, end);
-        const url = urlsData.urls[i];
-        const partNumber = urlsData.part_numbers[i];
-
-        const uploadRes = await fetch(url, {
-          method: 'PUT',
-          body: chunk,
+      for (let batchStart = 1; batchStart <= totalParts; batchStart += batchSize) {
+        const batchCount = Math.min(batchSize, totalParts - batchStart + 1);
+        setStatusMessage(`Requesting URLs for parts ${batchStart}-${batchStart + batchCount - 1}...`);
+        
+        const urlsRes = await fetch(`${gatewayUrl}/api/jobs/${jId}/urls?start=${batchStart}&count=${batchCount}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        if (!uploadRes.ok) throw new Error(`Failed to upload part ${partNumber}`);
         
-        let etag = uploadRes.headers.get('ETag');
-        if (!etag) {
-          etag = `dummy-etag-${partNumber}`;
-          console.warn("ETag missing from response headers, using fallback");
+        if (!urlsRes.ok) throw new Error('Failed to get presigned URLs');
+        const urlsData = await urlsRes.json();
+
+        for (let i = 0; i < batchCount; i++) {
+          const partIndex = (batchStart - 1) + i;
+          const start = partIndex * partSize;
+          const end = Math.min(start + partSize, file.size);
+          const chunk = file.slice(start, end);
+          const url = urlsData.urls[i];
+          const partNumber = urlsData.part_numbers[i];
+
+          const uploadRes = await fetch(url, {
+            method: 'PUT',
+            body: chunk,
+          });
+
+          if (!uploadRes.ok) throw new Error(`Failed to upload part ${partNumber}`);
+          
+          let etag = uploadRes.headers.get('ETag');
+          if (!etag) {
+            etag = `dummy-etag-${partNumber}`;
+            console.warn("ETag missing from response headers, using fallback");
+          }
+
+          uploadedParts.push({ part_number: partNumber, etag: etag });
+          uploadedBytes += chunk.size;
+          
+          // Update progress just for upload phase (0 to 50%)
+          const uploadProgress = Math.floor((uploadedBytes / file.size) * 50);
+          setProgress(uploadProgress);
         }
-
-        uploadedParts.push({ part_number: partNumber, etag: etag });
-        uploadedBytes += chunk.size;
-        
-        // Update progress just for upload phase (0 to 50%)
-        const uploadProgress = Math.floor((uploadedBytes / file.size) * 50);
-        setProgress(uploadProgress);
       }
 
       // Step 4: Complete Upload

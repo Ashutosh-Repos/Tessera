@@ -90,7 +90,7 @@ HTTP Ingress Span (Gateway)
             ├── NATS Task Queue Payload (SegmentTask.JobID)
             └── Worker Execution Span (Worker 1..N)
                  ├── FFmpeg CLI Process Execution Span
-                 └── S3 Atomic Commit (.tmp -> .ts) Span
+                 └── S3 Direct Upload (.ts) Span
 ```
 
 ### W3C Trace Context Propagation Header

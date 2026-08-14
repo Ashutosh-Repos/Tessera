@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/distributed-transcoder/internal/infra"
 	"github.com/distributed-transcoder/internal/models"
@@ -210,7 +211,15 @@ func (m *MockStateStore) PublishProgress(ctx context.Context, jobID string, upda
 }
 
 func (m *MockStateStore) ReadProgressStream(ctx context.Context, jobIDs []string, lastIDs []string, blockMs int) ([]infra.StreamEntry, error) {
-	return nil, nil
+	if blockMs <= 0 {
+		blockMs = 20
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(time.Duration(blockMs) * time.Millisecond):
+		return nil, nil
+	}
 }
 
 func (m *MockStateStore) DeduplicateEvent(ctx context.Context, jobID string) (bool, error) {

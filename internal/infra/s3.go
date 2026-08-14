@@ -247,10 +247,26 @@ func (s *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 			return err
 		}
 
+		if len(page.Contents) == 0 {
+			continue
+		}
+
+		var objectsToDelete []types.ObjectIdentifier
 		for _, obj := range page.Contents {
-			_, err = s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			if obj.Key != nil {
+				objectsToDelete = append(objectsToDelete, types.ObjectIdentifier{
+					Key: obj.Key,
+				})
+			}
+		}
+
+		if len(objectsToDelete) > 0 {
+			_, err = s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 				Bucket: aws.String(s.bucket),
-				Key:    obj.Key,
+				Delete: &types.Delete{
+					Objects: objectsToDelete,
+					Quiet:   aws.Bool(true),
+				},
 			})
 			if err != nil {
 				return err

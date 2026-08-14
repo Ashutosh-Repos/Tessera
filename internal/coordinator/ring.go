@@ -54,10 +54,7 @@ func (hr *HashRing) OwnerOf(partitionID int) string {
 		return ""
 	}
 
-	key := fmt.Sprintf("partition:%d", partitionID)
-	h := fnv.New32a()
-	h.Write([]byte(key))
-	hash := h.Sum32()
+	hash := hashPartitionKey(partitionID)
 
 	// Binary search for the first virtual node >= hash
 	idx := sort.Search(len(hr.ring), func(i int) bool { return hr.ring[i] >= hash })
@@ -65,6 +62,48 @@ func (hr *HashRing) OwnerOf(partitionID int) string {
 		idx = 0 // wrap around
 	}
 	return hr.nodeMap[hr.ring[idx]]
+}
+
+// hashPartitionKey computes FNV-1a 32-bit hash for "partition:<id>" without heap allocations.
+func hashPartitionKey(partitionID int) uint32 {
+	const offset32 uint32 = 2166136261
+	const prime32 uint32 = 16777619
+
+	h := offset32
+	prefix := "partition:"
+	for i := 0; i < len(prefix); i++ {
+		h ^= uint32(prefix[i])
+		h *= prime32
+	}
+
+	var buf [20]byte
+	pos := len(buf)
+	n := partitionID
+	if n == 0 {
+		pos--
+		buf[pos] = '0'
+	} else {
+		neg := false
+		if n < 0 {
+			neg = true
+			n = -n
+		}
+		for n > 0 {
+			pos--
+			buf[pos] = byte('0' + n%10)
+			n /= 10
+		}
+		if neg {
+			pos--
+			buf[pos] = '-'
+		}
+	}
+
+	for i := pos; i < len(buf); i++ {
+		h ^= uint32(buf[i])
+		h *= prime32
+	}
+	return h
 }
 
 // OwnedPartitions returns all partition IDs owned by a specific node.

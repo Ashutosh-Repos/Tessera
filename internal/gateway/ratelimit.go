@@ -60,7 +60,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 						}
 						if jobID != "" {
 							key := fmt.Sprintf("ratelimit:user:%s", jobID)
-							count, err := rl.state.IncrRateLimit(r.Context(), key, 60)
+							count, err := rl.state.IncrRateLimit(r.Context(), key, 86400)
 							if err == nil && int(count) > rl.limitPerUser {
 								http.Error(w, "Too many requests for this job", http.StatusTooManyRequests)
 								return
@@ -75,15 +75,23 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// getIP extracts the real client IP (handles load balancers).
+// getIP extracts the client IP, only trusting X-Forwarded-For from private/loopback proxies.
 func getIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.SplitN(xff, ",", 2)
-		return strings.TrimSpace(parts[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		remoteHost = r.RemoteAddr
 	}
-	return host
+
+	ip := net.ParseIP(remoteHost)
+	if ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			clientIP := strings.TrimSpace(parts[0])
+			if net.ParseIP(clientIP) != nil {
+				return clientIP
+			}
+		}
+	}
+
+	return remoteHost
 }

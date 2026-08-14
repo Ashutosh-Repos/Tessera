@@ -52,7 +52,7 @@ The architecture is governed by four primary quality goals, ordered by strict pr
 | :--- | :--- | :--- | :--- |
 | **P1** | **Cloud Agnosticism** | 100% Driver Swappability | All storage, state, and event bus operations are strictly isolated behind Go interfaces ([`StateStore`](../internal/infra/store.go#L11), [`ObjectStore`](../internal/infra/s3.go#L18), [`MessageBus`](../internal/infra/bus.go#L9)). The platform can switch from NATS to AWS SQS or MinIO to S3 by changing a single YAML flag. |
 | **P2** | **Extreme Scalability** | < 100ms SSE Latency at 50k SSE Clients | Independent horizontal scaling of Gateways (HPA based on HTTP volume), Coordinators (Etcd Hash Ring partition assignment), and Workers (Kubernetes KEDA scaling based on NATS queue depth). |
-| **P3** | **Fault Tolerance & Resiliency** | 99.999% Zero Data Corruption | Worker OS watchdogs (`syscall.Statfs`), S3 Thundering Herd Circuit Breakers ([`breaker.go`](../internal/worker/breaker.go#L20)), Atomic S3 `.tmp` commit renames, and Exponential Backoff Dead Letter Queues ([`dlq.go`](../internal/coordinator/dlq.go#L17)). |
+| **P3** | **Fault Tolerance & Resiliency** | 99.999% Zero Data Corruption | Worker OS watchdogs (`syscall.Statfs`), S3 Thundering Herd Circuit Breakers ([`breaker.go`](../internal/worker/breaker.go#L20)), Direct S3 Atomic `.ts` Commits, and Exponential Backoff Dead Letter Queues ([`dlq.go`](../internal/coordinator/dlq.go#L17)). |
 | **P4** | **Zero-Cost Deployment** | 4 OCPUs / 24GB RAM (Free) | Native compilation for ARM64 (Oracle Cloud Ampere A1), Tailscale overlay mesh networking, aggressive memory management, and local MinIO emulation. |
 
 ---

@@ -1,73 +1,103 @@
-# React + TypeScript + Vite
+# 📦 @distributed-transcoder/ui-sdk
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **Tessera UI SDK** is a production-grade React & TypeScript component library providing high-performance video uploading, real-time progress streaming, adaptive HLS/DASH video playback, and sprite thumbnail scrubbers.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Installation
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install @distributed-transcoder/ui-sdk
+# or
+pnpm add @distributed-transcoder/ui-sdk
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🛠️ Components & Usage
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. `VideoUploader`
+Handles chunked client-side multipart S3 uploads with automatic retry, presigned URL batching, and real-time SSE progress updates.
+
+```tsx
+import React from 'react';
+import { VideoUploader } from '@distributed-transcoder/ui-sdk';
+
+export function UploadPage() {
+  return (
+    <VideoUploader
+      apiBaseUrl="https://api.tessera.io"
+      onUploadStart={(jobId) => console.log('Upload started:', jobId)}
+      onProgress={(pct) => console.log(`Progress: ${pct}%`)}
+      onComplete={(result) => {
+        console.log('HLS Playlist:', result.hlsUrl);
+        console.log('DASH Manifest:', result.dashUrl);
+      }}
+      onError={(err) => console.error('Upload failed:', err)}
+    />
+  );
+}
+```
+
+---
+
+### 2. `VideoPlayer`
+An adaptive video player integrating HLS.js with automatic bitrate switching (1080p, 720p, 480p), timeline sprite preview scrubbing, keyboard shortcuts, and responsive layouts.
+
+```tsx
+import React from 'react';
+import { VideoPlayer } from '@distributed-transcoder/ui-sdk';
+
+export function WatchPage() {
+  return (
+    <VideoPlayer
+      src="https://cdn.tessera.io/jobs/partition_5/job_abc/hls/master.m3u8"
+      poster="https://cdn.tessera.io/jobs/partition_5/job_abc/poster.jpg"
+      spriteConfig={{
+        spriteUrl: "https://cdn.tessera.io/jobs/partition_5/job_abc/sprite.jpg",
+        vttUrl: "https://cdn.tessera.io/jobs/partition_5/job_abc/sprite.vtt"
+      }}
+      autoplay={false}
+      controls={true}
+    />
+  );
+}
+```
+
+---
+
+### 3. `VideoTile`
+A card component for video feeds, displaying hover animated previews, duration badges, and playback triggers.
+
+```tsx
+import React from 'react';
+import { VideoTile } from '@distributed-transcoder/ui-sdk';
+
+export function VideoGrid() {
+  return (
+    <VideoTile
+      title="Sample 4K Nature Clip"
+      duration="05:20"
+      thumbnailUrl="https://cdn.tessera.io/jobs/thumb.jpg"
+      hlsUrl="https://cdn.tessera.io/jobs/master.m3u8"
+      onClick={() => alert('Play video')}
+    />
+  );
+}
+```
+
+---
+
+## 🎨 Styling & Customization
+
+The SDK comes with built-in Tailwind CSS support and allows overriding class names via props:
+
+```tsx
+<VideoPlayer
+  src="https://cdn.tessera.io/master.m3u8"
+  classNames={{
+    container: "rounded-2xl shadow-2xl border border-white/10",
+    controls: "bg-black/60 backdrop-blur-md",
+  }}
+/>
 ```

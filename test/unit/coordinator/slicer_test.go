@@ -1,6 +1,7 @@
 package coordinator_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -301,5 +302,47 @@ func TestIsFaststart(t *testing.T) {
 				t.Errorf("expected IsFaststart=%t, got %t", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestUploadSlices_CustomResolutions(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "test-custom-res-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	chunkPath := filepath.Join(tempDir, "chunk_000.mp4")
+	_ = os.WriteFile(chunkPath, []byte("dummy chunk data"), 0644)
+
+	mockStore := mocks.NewMockObjectStore()
+	mockBus := mocks.NewMockMessageBus()
+	pm := newTestPM(mockStore, mockBus)
+
+	jobID := "custom-res-job-123"
+	// Cache a manifest specifying only 720p
+	manifest := models.JobManifest{
+		JobID:       jobID,
+		Resolutions: []models.Resolution{models.Res720p},
+	}
+	manifestData, _ := json.Marshal(manifest)
+	manifestKey := fmt.Sprintf("jobs/partition_2/job_%s/job_manifest.json", jobID)
+	_ = mockStore.PutObject(context.Background(), manifestKey, bytes.NewReader(manifestData), int64(len(manifestData)))
+
+	count, err := pm.UploadSlices(context.Background(), jobID, tempDir)
+	if err != nil {
+		t.Fatalf("UploadSlices failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 segment, got %d", count)
+	}
+
+	// Verify published tasks count in bus: should be 1 task (only 720p) instead of 3
+	totalTasks := 0
+	for _, tasks := range mockBus.Tasks {
+		totalTasks += len(tasks)
+	}
+	if totalTasks != 1 {
+		t.Errorf("expected exactly 1 task published for single resolution, got %d", totalTasks)
 	}
 }

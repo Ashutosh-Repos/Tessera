@@ -33,7 +33,8 @@ Initialize the upload by sending the file metadata. The gateway returns a `job_i
 ---
 
 ### Step 2: Request Presigned PUT URLs
-Request signed S3 upload URLs for the file chunks. You can batch requests (e.g., 10 parts at a time).
+Request signed S3 upload URLs for the file chunks. You can batch requests (e.g., 10 to 100 parts at a time).
+- **Bounds**: `start >= 1`, `count` between `1` and `100`, and `start + count - 1 <= 10000` (AWS S3 multipart 10,000 part upper bound).
 
 - **Request**: `POST /api/jobs/{job_id}/urls?start=1&count=10`
 - **Headers**: `Authorization: Bearer <session_token>`
@@ -84,9 +85,25 @@ Tell Tessera to assemble the S3 chunks and kick off the transcoding pipeline.
 
 ---
 
-### Step 5: Listen to Real-Time Progress Stream
-Connect to the Server-Sent Events (SSE) endpoint to display a progress bar and receive the final streaming URLs.
+### Step 5: Query Job Status or Stream Real-Time Progress
+You can either poll the REST status endpoint or listen to the real-time SSE stream.
 
+#### Option A: Polling Job Status
+- **Request**: `GET /api/jobs/{job_id}/status`
+- **Response (200 OK)**:
+```json
+{
+  "job_id": "us-east:550e8400-e29b-41d4-a716-446655440000",
+  "state": "TRANSCODING",
+  "completed": "12",
+  "total": "60",
+  "pct": "20",
+  "last_updated": "1723637890"
+}
+```
+*(Returns `404 Not Found` if the job does not exist or has expired).*
+
+#### Option B: Real-Time SSE Progress Stream
 - **Request**: `GET /progress/{job_id}?token=<session_token>`
 - **Response Headers**: `Content-Type: text/event-stream`
 - **Events Output**:

@@ -43,7 +43,12 @@ func (pm *PartitionManager) sliceAndDispatch(ctx context.Context, jobID string) 
 	}
 
 	// 4. Update status to TRANSCODING and flush all pipelined NATS publishes
-	totalTasks := segmentCount * len(models.AllResolutions)
+	manifest, mErr := pm.loadManifest(ctx, jobID)
+	targetResolutions := models.AllResolutions
+	if mErr == nil && len(manifest.Resolutions) > 0 {
+		targetResolutions = manifest.Resolutions
+	}
+	totalTasks := segmentCount * len(targetResolutions)
 	pm.coord.state.SetJobStatus(ctx, jobID, map[string]interface{}{
 		"state": string(models.JobPhaseTranscoding), "total": totalTasks,
 		"last_updated": time.Now().Unix(),
@@ -120,7 +125,7 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 
 	// Phase 3: Upload manifest to S3 with segment count and duration
 	manifest.SegmentCount = segmentCount
-	manifest.TotalTasks = segmentCount * len(models.AllResolutions)
+	manifest.TotalTasks = segmentCount * len(manifest.Resolutions)
 	manifest.DurationSec = totalDuration
 	manifestData, err := json.Marshal(manifest)
 	if err != nil {
@@ -231,7 +236,7 @@ func (pm *PartitionManager) sliceFaststart(ctx context.Context, jobID string, fa
 		"-c", "copy",
 		"-map", "0",
 		"-f", "segment",
-		"-segment_time", "2",
+		"-segment_time", "5",
 		"-reset_timestamps", "1",
 		chunkPattern,
 	)
@@ -286,6 +291,12 @@ func (pm *PartitionManager) UploadSlices(ctx context.Context, jobID string, temp
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(10)
 
+	// Determine target resolutions from manifest if available
+	targetResolutions := models.AllResolutions
+	if manifest, err := pm.loadManifest(ctx, jobID); err == nil && len(manifest.Resolutions) > 0 {
+		targetResolutions = manifest.Resolutions
+	}
+
 	for _, file := range chunkFiles {
 		file := file // capture loop variable for goroutine closure
 		g.Go(func() error {
@@ -312,7 +323,7 @@ func (pm *PartitionManager) UploadSlices(ctx context.Context, jobID string, temp
 			// the instant this chunk lands on S3.
 			var segIdx int
 			if _, scanErr := fmt.Sscanf(file.Name(), "chunk_%03d.mp4", &segIdx); scanErr == nil {
-				for _, res := range models.AllResolutions {
+				for _, res := range targetResolutions {
 					task := models.SegmentTask{
 						JobID:       jobID,
 						PartitionID: pm.partitionID,

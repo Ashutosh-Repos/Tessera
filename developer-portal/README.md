@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📚 Tessera Developer Portal
 
-## Getting Started
+The **Tessera Developer Portal** is an interactive documentation platform, API playground, and developer resource center built with Next.js and Tailwind CSS.
 
-First, run the development server:
+---
 
+## 🌟 Highlights
+
+1. **Interactive API Reference**:
+   - Comprehensive documentation for `/api/jobs/upload-session`, `/api/jobs/{uuid}/urls`, `/api/jobs/{uuid}/complete`, and `/api/jobs/{uuid}/status`.
+   - Live API request builder with multi-language code snippets (cURL, TypeScript, Python, Go).
+2. **Architecture & Integration Guides**:
+   - In-depth tutorials explaining zero-bandwidth multipart S3 ingestion, HLS/DASH streaming, and SSE telemetry.
+3. **Webhooks & Telemetry**:
+   - Documentation for configuring completion webhooks, Dead Letter Queue (DLQ) alerts, and Redis streams.
+4. **SDK Downloads**:
+   - Integration instructions for `@distributed-transcoder/ui-sdk` and backend client libraries.
+
+---
+
+## 🚀 Getting Started
+
+### Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd developer-portal
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Local Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
+```bash
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ⚙️ Environment Configuration
 
-To learn more about Next.js, take a look at the following resources:
+Create a `.env.local` file in `developer-portal/`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```ini
+# Gateway API URL for interactive sandbox playground
+NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Documentation site metadata
+NEXT_PUBLIC_SITE_URL=https://docs.tessera.io
+```

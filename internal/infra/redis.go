@@ -168,12 +168,10 @@ func (r *RedisStore) ReadProgressStream(ctx context.Context, jobIDs []string, la
 
 	var entries []StreamEntry
 	for _, stream := range result {
-		// Extract jobID from stream name progress:{jobID}
-		// stream.Stream is "progress:{uuid}"
-		jobID := ""
-		if len(stream.Stream) > 10 {
-			jobID = stream.Stream[10 : len(stream.Stream)-1]
-		}
+		// Extract jobID from stream name progress:{jobID} or progress:jobID
+		jobID := strings.TrimPrefix(stream.Stream, "progress:{")
+		jobID = strings.TrimPrefix(jobID, "progress:")
+		jobID = strings.TrimSuffix(jobID, "}")
 		for _, msg := range stream.Messages {
 			fields := make(map[string]string)
 			for k, v := range msg.Values {

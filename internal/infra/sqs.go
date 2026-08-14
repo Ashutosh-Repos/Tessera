@@ -111,13 +111,28 @@ func (s *SQSBus) FlushPendingPublishes(ctx context.Context) error {
 	return nil
 }
 
-// PublishEvent routes simulated storage notifications or transcoded completion updates to their aggregate queues.
+// PublishEvent routes simulated storage notifications or transcoded completion updates to their partition queues.
 func (s *SQSBus) PublishEvent(ctx context.Context, subject string, payload []byte) error {
 	var targetQueue string
 	if strings.Contains(subject, "s3-raw-uploads") {
+		// Route to dedicated partition queue if subject has partition tag
+		parts := strings.Split(subject, ".")
 		targetQueue = "transcoder-upload-events"
+		for _, p := range parts {
+			if strings.HasPrefix(p, "partition_") {
+				targetQueue = fmt.Sprintf("transcoder-upload-events-%s", p)
+				break
+			}
+		}
 	} else if strings.Contains(subject, "s3-transcoded") {
+		parts := strings.Split(subject, ".")
 		targetQueue = "transcoder-completion-events"
+		for _, p := range parts {
+			if strings.HasPrefix(p, "partition_") {
+				targetQueue = fmt.Sprintf("transcoder-completion-events-%s", p)
+				break
+			}
+		}
 	} else {
 		targetQueue = "transcoder-dlq"
 	}
@@ -180,23 +195,25 @@ func (s *SQSBus) PullTasks(ctx context.Context, shard int, batchSize int) ([]Tas
 	return msgs, nil
 }
 
-// SubscribePartitionUploads polls the upload events queue and filters by partition index.
+// SubscribePartitionUploads polls the partition's dedicated upload events queue.
 func (s *SQSBus) SubscribePartitionUploads(ctx context.Context, partitionID int, handler func(msg TaskMessage)) error {
-	url, err := s.getQueueURL(ctx, "transcoder-upload-events")
+	queueName := fmt.Sprintf("transcoder-upload-events-partition_%d", partitionID)
+	url, err := s.getQueueURL(ctx, queueName)
 	if err != nil {
 		return err
 	}
-	go s.pollEventsLoop(ctx, url, fmt.Sprintf("partition_%d", partitionID), handler)
+	go s.pollEventsLoop(ctx, url, "", handler)
 	return nil
 }
 
-// SubscribeCompletionEvents polls the completion events queue and filters by partition index.
+// SubscribeCompletionEvents polls the partition's dedicated completion events queue.
 func (s *SQSBus) SubscribeCompletionEvents(ctx context.Context, partitionID int, handler func(msg TaskMessage)) error {
-	url, err := s.getQueueURL(ctx, "transcoder-completion-events")
+	queueName := fmt.Sprintf("transcoder-completion-events-partition_%d", partitionID)
+	url, err := s.getQueueURL(ctx, queueName)
 	if err != nil {
 		return err
 	}
-	go s.pollEventsLoop(ctx, url, fmt.Sprintf("partition_%d", partitionID), handler)
+	go s.pollEventsLoop(ctx, url, "", handler)
 	return nil
 }
 
