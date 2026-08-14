@@ -63,6 +63,9 @@ func (pm *PartitionManager) executeSlicing(ctx context.Context, jobID string) (i
 	if err != nil {
 		return 0, fmt.Errorf("failed to load manifest: %w", err)
 	}
+	if len(manifest.Resolutions) == 0 {
+		manifest.Resolutions = models.AllResolutions
+	}
 
 	// 2. Create temporary directory for local processing
 	tempDir, err := os.MkdirTemp("", "slicing-job-"+jobID+"-*")

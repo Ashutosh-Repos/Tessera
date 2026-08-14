@@ -1,11 +1,10 @@
-# yaml-language-server: $schema=https://coderabbit.ai/integrations/coderabbit-overrides.v2.json
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # ==============================================================================
 # CodeRabbit AI Configuration
 # Project: Distributed Video Transcoder (Go Backend + Next.js / React Frontend Monorepo)
 # Documentation: https://docs.coderabbit.ai/guides/configure-coderabbit
 # ==============================================================================
 
-version: "2"
 language: "en-US"
 early_access: false
 

@@ -24,13 +24,15 @@ interface VideoUploaderProps {
   onUploadSuccess?: (hlsUrl: string) => void;
   className?: string;
   classNames?: VideoUploaderClassNames;
+  allowSimulation?: boolean; // Development-only simulation mode
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({ 
   gatewayUrl, 
   onUploadSuccess,
   className,
-  classNames = {}
+  classNames = {},
+  allowSimulation = false
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -56,13 +58,13 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     e.preventDefault();
     setIsDragging(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+    if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
   };
@@ -71,7 +73,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     if (!file) return;
     setStatus('uploading');
     setProgress(0);
-    setStatusMessage('Initializing Upload...');
+    setStatusMessage('Initializing Upload Session...');
 
     try {
       // Step 1: Create Upload Session
@@ -90,11 +92,11 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       
       setJobId(jId);
 
-      // Step 2 & 3: Chunk and Upload with Batched Presigned URLs (max 100 parts/batch)
+      // Step 2 & 3: Chunk and Upload with Just-in-Time Batched Presigned URLs (batch size 25)
       setStatusMessage('Uploading Media Chunks...');
-      const uploadedParts = [];
+      const uploadedParts: Array<{ part_number: number; etag: string }> = [];
       let uploadedBytes = 0;
-      const batchSize = 100;
+      const batchSize = 25;
 
       for (let batchStart = 1; batchStart <= totalParts; batchStart += batchSize) {
         const batchCount = Math.min(batchSize, totalParts - batchStart + 1);
@@ -123,13 +125,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           if (!uploadRes.ok) throw new Error(`Failed to upload part ${partNumber}`);
           
-          let etag = uploadRes.headers.get('ETag');
-          if (!etag) {
-            etag = `dummy-etag-${partNumber}`;
-            console.warn("ETag missing from response headers, using fallback");
+          const rawEtag = uploadRes.headers.get('ETag');
+          if (!rawEtag) {
+            throw new Error(`S3 response for part ${partNumber} did not return an ETag header. Please verify your S3/MinIO CORS configuration exposes the 'ETag' header (ExposeHeaders: ["ETag"]).`);
           }
-
-          uploadedParts.push({ part_number: partNumber, etag: etag });
+          const cleanEtag = rawEtag.replace(/^"|"$/g, '');
+          uploadedParts.push({ part_number: partNumber, etag: `"${cleanEtag}"` });
           uploadedBytes += chunk.size;
           
           // Update progress just for upload phase (0 to 50%)
@@ -155,11 +156,18 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       setStatusMessage('Distributed Transcoding Active...');
       
       // Step 5: Listen to SSE for Transcode Progress
-      connectToSSE(jId);
+      connectToSSE(jId, token);
       
-    } catch (err) {
-      console.warn("Backend connection unavailable, running Standalone Simulation Mode:", err);
-      runSimulationUpload(file);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown upload failure';
+      console.error("Upload process error:", err);
+      if (allowSimulation) {
+        console.warn("Explicit simulation fallback active:", err);
+        runSimulationUpload(file);
+      } else {
+        setStatus('error');
+        setStatusMessage(`Upload failed: ${errMsg}`);
+      }
     }
   };
 
@@ -189,9 +197,15 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     }, 400);
   };
 
-  const connectToSSE = (id: string) => {
-    // SSE Progress is mapped from 50% to 100% since upload took 0-50%
-    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}`);
+  const connectToSSE = (id: string, sessionToken?: string) => {
+    // If the browser received the HttpOnly cookie during session initialization,
+    // EventSource connects using credentials without exposing the token in the URL query string.
+    // Query string token is only used as a fallback for cross-origin setups.
+    const isCrossOrigin = typeof window !== 'undefined' && !gatewayUrl.startsWith(window.location.origin);
+    const tokenQuery = (isCrossOrigin && sessionToken) ? `?token=${encodeURIComponent(sessionToken)}` : '';
+    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}${tokenQuery}`, {
+      withCredentials: true,
+    });
     
     eventSource.onmessage = (event) => {
       try {

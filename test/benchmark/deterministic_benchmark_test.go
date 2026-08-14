@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/distributed-transcoder/internal/coordinator"
@@ -114,7 +115,9 @@ func Benchmark_ProbeDurationGo_Deterministic(b *testing.B) {
 		data[offset+17] = byte(((pts & 0x7F) << 1) | 0x01)
 	}
 
-	_ = os.WriteFile(filePath, data, 0644)
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		b.Fatalf("write MPEG-TS fixture: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -137,10 +140,13 @@ func Benchmark_ProgressMultiplexer_FanoutScaling_Deterministic(b *testing.B) {
 	for _, subCount := range subscriberCounts {
 		b.Run(fmt.Sprintf("Subscribers_%d", subCount), func(b *testing.B) {
 			channels := make([]chan models.ProgressUpdate, subCount)
+			var wg sync.WaitGroup
 			for i := 0; i < subCount; i++ {
 				channels[i] = make(chan models.ProgressUpdate, 10)
+				wg.Add(1)
 				// Background drain to prevent full channels
 				go func(c chan models.ProgressUpdate) {
+					defer wg.Done()
 					for range c {
 					}
 				}(channels[i])
@@ -170,6 +176,7 @@ func Benchmark_ProgressMultiplexer_FanoutScaling_Deterministic(b *testing.B) {
 			for _, ch := range channels {
 				close(ch)
 			}
+			wg.Wait()
 		})
 	}
 }

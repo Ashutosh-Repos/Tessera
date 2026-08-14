@@ -47,6 +47,16 @@ worker:
 		t.Fatalf("failed to write test config file: %v", err)
 	}
 
+	// Neutralize inherited TRANSCODER_* overrides for clean test isolation
+	for _, key := range []string{
+		"TRANSCODER_REGION", "TRANSCODER_JWT_SECRET", "TRANSCODER_LISTEN_ADDR",
+		"TRANSCODER_REDIS_ADDRS", "TRANSCODER_REDIS_PASSWORD",
+		"TRANSCODER_MESSAGE_BUS_PROVIDER", "TRANSCODER_ETCD_ENDPOINTS",
+		"TRANSCODER_S3_ENDPOINT", "TRANSCODER_S3_ACCESS_KEY", "TRANSCODER_S3_SECRET_KEY", "TRANSCODER_S3_BUCKET",
+	} {
+		t.Setenv(key, "")
+	}
+
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		t.Fatalf("LoadConfig failed: %v", err)

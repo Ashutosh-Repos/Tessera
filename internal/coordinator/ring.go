@@ -78,15 +78,16 @@ func hashPartitionKey(partitionID int) uint32 {
 
 	var buf [20]byte
 	pos := len(buf)
-	n := partitionID
-	if n == 0 {
+	if partitionID == 0 {
 		pos--
 		buf[pos] = '0'
 	} else {
-		neg := false
-		if n < 0 {
-			neg = true
-			n = -n
+		neg := partitionID < 0
+		var n uint
+		if neg {
+			n = uint(-(partitionID + 1)) + 1
+		} else {
+			n = uint(partitionID)
 		}
 		for n > 0 {
 			pos--

@@ -51,8 +51,6 @@ func setupTestGateway(jwtSecret, adminKey string) (*gateway.GatewayDaemon, *mock
 // ─────────────────────────────────────────────────────────────
 
 func Test_Gateway_UploadSession_ZeroAndNegativeBounds_ReturnsBadRequest(t *testing.T) {
-	_, state, _, _, _ := setupTestGateway("secret", "admin-key")
-
 	tests := []struct {
 		name     string
 		fileSize int64
@@ -92,7 +90,6 @@ func Test_Gateway_UploadSession_ZeroAndNegativeBounds_ReturnsBadRequest(t *testi
 			}
 		})
 	}
-	_ = state
 }
 
 func Test_Gateway_UploadSession_Max50GBBoundary_ValidatesStrictly(t *testing.T) {
@@ -299,7 +296,10 @@ func Test_Gateway_RateLimiter_JWTUserLimit_SlidingWindow24h(t *testing.T) {
 		"sub":    jobID,
 		"job_id": jobID,
 	})
-	tokenStr, _ := token.SignedString([]byte(secret))
+	tokenStr, err := token.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatalf("failed to sign JWT token: %v", err)
+	}
 
 	state := mocks.NewMockStateStore()
 	state.RateLimits[fmt.Sprintf("ratelimit:user:%s", jobID)] = 500 // Exceeds limit
@@ -380,6 +380,13 @@ func Test_Gateway_Multiplexer_SlowClientBufferDrop_DoesNotBlock(t *testing.T) {
 	slowCh := make(chan models.ProgressUpdate)
 	pm.Subscribe(jobID, slowCh)
 	defer pm.Unsubscribe(jobID, slowCh)
+
+	// Inject a progress update to ensure the multiplexer attempts to send
+	_ = state.PublishProgress(context.Background(), jobID, models.ProgressUpdate{
+		Phase:     models.JobPhaseTranscoding,
+		Completed: 1,
+		Total:     10,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()

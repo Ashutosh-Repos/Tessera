@@ -2,6 +2,7 @@ package models_test
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -58,7 +59,13 @@ func Test_Models_JobManifest_JSONRoundTrip(t *testing.T) {
 		t.Fatalf("failed to unmarshal JobManifest: %v", err)
 	}
 
-	if decoded.JobID != manifest.JobID || decoded.PartitionID != 42 || decoded.TotalTasks != 48 {
+	if decoded.JobID != manifest.JobID || decoded.PartitionID != manifest.PartitionID ||
+		decoded.OwnerEpoch != manifest.OwnerEpoch || decoded.Region != manifest.Region ||
+		decoded.SourcePath != manifest.SourcePath || decoded.SourceSizeB != manifest.SourceSizeB ||
+		decoded.SourceCodec != manifest.SourceCodec || decoded.SourceFPS != manifest.SourceFPS ||
+		decoded.DurationSec != manifest.DurationSec || !reflect.DeepEqual(decoded.Resolutions, manifest.Resolutions) ||
+		decoded.SegmentCount != manifest.SegmentCount || decoded.TotalTasks != manifest.TotalTasks ||
+		!decoded.CreatedAt.Equal(manifest.CreatedAt) {
 		t.Errorf("manifest roundtrip mismatch: %+v vs %+v", decoded, manifest)
 	}
 }
@@ -84,7 +91,10 @@ func Test_Models_JobStatus_JSONRoundTrip(t *testing.T) {
 		t.Fatalf("failed to unmarshal JobStatus: %v", err)
 	}
 
-	if decoded.Phase != models.JobPhaseTranscoding || decoded.Completed != 10 {
+	if decoded.JobID != status.JobID || decoded.Phase != status.Phase ||
+		decoded.Completed != status.Completed || decoded.Total != status.Total ||
+		decoded.OwnerEpoch != status.OwnerEpoch || decoded.PartitionID != status.PartitionID ||
+		decoded.LastUpdated != status.LastUpdated {
 		t.Errorf("status roundtrip mismatch: %+v vs %+v", decoded, status)
 	}
 }

@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,7 +111,24 @@ func (g *GatewayDaemon) handleCreateSession(w http.ResponseWriter, r *http.Reque
 		UploadID:     uploadID,
 		PartSize:     50 * 1024 * 1024,
 		TotalParts:   totalParts,
-		ProgressWSS:  fmt.Sprintf("wss://%s/progress/%s?token=%s", g.cfg.Gateway.ListenAddr, jobID, tokenStr),
+		ProgressWSS:  fmt.Sprintf("wss://%s/progress/%s", g.cfg.Gateway.ListenAddr, jobID),
+	}
+
+	if tokenStr != "" {
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		sameSite := http.SameSiteLaxMode
+		if isSecure {
+			sameSite = http.SameSiteNoneMode
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     "tessera_session_token",
+			Value:    tokenStr,
+			Path:     fmt.Sprintf("/progress/%s", url.PathEscape(jobID)),
+			HttpOnly: true,
+			Secure:   isSecure,
+			SameSite: sameSite,
+			MaxAge:   86400,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -184,6 +201,11 @@ func (g *GatewayDaemon) handleWebSocketOrSSE(w http.ResponseWriter, r *http.Requ
 	// Validate JWT if secret is set
 	if g.cfg.Gateway.JWTSecret != "" {
 		tokenStr := r.URL.Query().Get("token")
+		if tokenStr == "" {
+			if cookie, err := r.Cookie("tessera_session_token"); err == nil && cookie.Value != "" {
+				tokenStr = cookie.Value
+			}
+		}
 		if tokenStr == "" {
 			authHeader := r.Header.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
