@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    name: Go Test & Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Run Unit & Integration Tests with Race Detector
+        run: |
+          go test -v -race ./test/unit/... ./test/integration/...
+
+      - name: Run Deterministic Benchmarks
+        run: |
+          go test -v -bench=. -benchmem ./test/benchmark/...
+
+  frontend-builds:
+    name: Frontend Packages & Portals Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [ui-sdk, admin-console, developer-portal]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & Build ${{ matrix.app }}
+        run: |
+          cd ${{ matrix.app }}
+          npm ci || npm install
+          npm run build

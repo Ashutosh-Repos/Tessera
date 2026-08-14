@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Tessera Documentation
+    url: https://github.com/Ashutosh-Repos/Tessera#readme
+    about: Read architecture deep-dives, developer integration guides, and operational playbooks.
+  - name: 💬 Community Discussions
+    url: https://github.com/Ashutosh-Repos/Tessera/discussions
+    about: Ask questions, discuss ideas, and share your deployment architecture.

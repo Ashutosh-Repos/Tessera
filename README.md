@@ -1,7 +1,9 @@
 # 🎬 Tessera — Distributed Video-on-Demand (VOD) Engine
 
+[![CI](https://github.com/Ashutosh-Repos/Tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/Ashutosh-Repos/Tessera/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Ashutosh-Repos/Tessera)](https://goreportcard.com/report/github.com/Ashutosh-Repos/Tessera)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/Ashutosh-Repos/Tessera)](https://golang.org)
-[![License](https://img.shields.io/github/license/Ashutosh-Repos/Tessera)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Messaging](https://img.shields.io/badge/Messaging-NATS%20JetStream%20%7C%20SQS-blue)](https://nats.io)
 [![State](https://img.shields.io/badge/State-Redis%20Cluster-red)](https://redis.io)
 [![Consensus](https://img.shields.io/badge/Consensus-Etcd-lightblue)](https://etcd.io)
