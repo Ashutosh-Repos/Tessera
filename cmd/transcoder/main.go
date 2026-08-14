@@ -49,6 +49,7 @@ func initInfra(cfg *config.Config, role string, needsBus, needsEtcd bool) (conte
 	if cfg.NodeID == "" {
 		cfg.NodeID = fmt.Sprintf("%s-node-%d", role, time.Now().UnixNano())
 	}
+	cfg.Worker.NodeID = cfg.NodeID
 	// override region from flag
 	if region != "" {
 		cfg.Region = region

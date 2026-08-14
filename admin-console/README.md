@@ -1,73 +1,80 @@
-# React + TypeScript + Vite
+# 🎛️ Tessera Admin Console
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **Tessera Admin Console** is a mission-control dashboard for managing global transcoding clusters, monitoring multi-region worker fleets, inspecting coordinator partition distributions, and tracking real-time job lifecycles.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Key Features
 
-## React Compiler
+1. **Global Cluster Topology**:
+   - Visualizes coordinator hash ring allocations across 1024 partitions.
+   - Monitors node join/leave events and partition rebalances via etcd consensus.
+2. **Worker Fleet Health**:
+   - Real-time CPU, RAM, and hardware accelerator (NVENC / VAAPI / VideoToolbox) utilization.
+   - Circuit breaker status (Closed, Open, Half-Open) and Dead Letter Queue (DLQ) depths.
+3. **Active Job Monitor**:
+   - Live inspection of active transcoding jobs across Slicing, Transcoding, Compiling, and Completed phases.
+   - Real-time bit-level segment completion tracking.
+4. **Cluster Telemetry**:
+   - Direct integration with Prometheus metrics and Grafana alerting webhooks.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🚀 Quickstart
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js >= 18.0.0
+- npm or pnpm
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+```bash
+cd admin-console
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Local Development
+```bash
+npm run dev
+```
+The console will start at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Production Build
+```bash
+npm run build
+npm run preview
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## ⚙️ Environment Configuration
+
+Create a `.env` file in the `admin-console` root:
+
+```ini
+# Gateway & Admin API Endpoint
+VITE_API_BASE_URL=http://localhost:8080
+
+# Admin API Key for authenticated cluster operations
+VITE_ADMIN_API_KEY=admin-secret-key-change-me
+
+# WebSocket Telemetry Stream
+VITE_WS_TELEMETRY_URL=ws://localhost:8080/telemetry
+```
+
+---
+
+## 📦 Project Structure
+
+```
+admin-console/
+├── src/
+│   ├── components/       # Cluster graphs, Worker fleet cards, Job tables
+│   ├── hooks/            # WebSocket telemetry & REST polling hooks
+│   ├── services/         # Gateway Admin API client
+│   ├── types/            # TypeScript data contracts & models
+│   ├── App.tsx           # Dashboard layout & routing
+│   └── main.tsx          # Application entrypoint
+├── public/               # Static assets & brand icons
+├── index.html            # Vite HTML shell
+└── vite.config.ts        # Vite build configuration
 ```

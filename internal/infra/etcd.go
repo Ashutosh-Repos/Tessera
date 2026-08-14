@@ -133,8 +133,8 @@ func (e *EtcdClient) WatchCoordinators(ctx context.Context) (<-chan CoordinatorE
 			}
 		}
 
-		log.Printf("[DEBUG-ETCD] WatchCoordinators: starting etcd watch...")
-		watchChan := e.client.Watch(ctx, "/coordinators/", clientv3.WithPrefix())
+		log.Printf("[DEBUG-ETCD] WatchCoordinators: starting etcd watch from revision %d...", resp.Header.Revision+1)
+		watchChan := e.client.Watch(ctx, "/coordinators/", clientv3.WithPrefix(), clientv3.WithRev(resp.Header.Revision+1))
 		for watchResp := range watchChan {
 			for _, event := range watchResp.Events {
 				key := string(event.Kv.Key)
@@ -204,16 +204,14 @@ func (e *EtcdClient) ReleaseSlicingLock(ctx context.Context, jobID string) error
 	}
 	e.mu.Unlock()
 
+	var unlockErr error
 	if hasMutex && mutex != nil {
-		mutex.Unlock(ctx)
+		unlockErr = mutex.Unlock(ctx)
 	}
 	if hasSession && session != nil {
 		session.Close()
 	}
-
-	// Simple delete since it's an ephemeral lock. A proper implementation would use the Mutex.Unlock
-	_, err := e.client.Delete(ctx, fmt.Sprintf("/locks/slicing/%s", jobID), clientv3.WithPrefix())
-	return err
+	return unlockErr
 }
 
 func (e *EtcdClient) KeepAliveLock(ctx context.Context, leaseID int64) error {

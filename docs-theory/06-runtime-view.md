@@ -84,9 +84,7 @@ sequenceDiagram
             Worker->>NATS: InProgress() [Extends AckWait deadline]
         end
         Worker->>Worker: `ffmpeg -i chunk.mp4 -vf scale={res} -force_key_frames ...`
-        Worker->>S3: PutObject("transcoded/segment_%03d_%s.ts.tmp")
-        Worker->>S3: CopyObject(".tmp" -> final ".ts")
-        Worker->>S3: DeleteObject(".tmp")
+        Worker->>S3: PutObject("transcoded/segment_%03d_%s.ts") [Direct Atomic Put]
         
         par Fast Path: Progress Stream
             Worker->>Redis: ExecuteCompletionPipeline(SetBit, HIncrBy, XAdd progress:{J})
@@ -232,9 +230,7 @@ sequenceDiagram
     else Chunk was not finished
         Redis-->>W2: Bit == 0
         W2->>W2: Execute FFmpeg
-        W2->>S3: PutObject("transcoded/segment_003_1080p.tmp")
-        W2->>S3: CopyObject(".tmp" -> ".ts") [Atomic Commit]
-        W2->>S3: DeleteObject(".tmp")
+        W2->>S3: PutObject("transcoded/segment_003_1080p.ts") [Direct Atomic Put]
         W2->>Redis: ExecuteCompletionPipeline(...)
         W2->>NATS: TaskAck()
     end
@@ -575,9 +571,10 @@ Code reference: [`tracing.InitTracer`](../internal/tracing/tracing.go#L15).
 ### 6.7.1 SQS Message Bus Provider (`sqs.go`)
 When `MessageBusProvider = "sqs"` is configured in place of NATS:
 - **FIFO Queues**: Shards map to FIFO queues `transcode-tasks-shard-{id}.fifo`.
+- **Partition Event Isolation**: Upload events and completion events route to dedicated partition queues (`transcoder-upload-events-partition_X` and `transcoder-completion-events-partition_X`), eliminating visibility timeouts and DLQ drops for non-matching partition messages.
 - **Deduplication & Grouping**: `MessageGroupId` is set to `partitionID`, ensuring in-order task evaluation per partition while enabling parallel processing across partitions.
 - **Visibility Extension**: Calls to `msg.InProgress()` invoke AWS SQS `ChangeMessageVisibility` to prevent early redelivery during long FFmpeg transcodes.
-- **DLQ Redelivery**: SQS Redrive Policy routes failed tasks to `transcode-tasks-dlq.fifo` after max receive counts.  
+- **DLQ Redelivery**: SQS Redrive Policy routes failed tasks to `transcode-tasks-dlq` after max receive counts.  
 Code reference: [`infra.NewSQSBus`](../internal/infra/sqs.go#L35).
 
 ### 6.7.2 Hardware Acceleration GPU Matrix
@@ -637,6 +634,6 @@ Code reference: [`handleListRegions`](../internal/gateway/handlers.go#L422).
 | **Worker** | S3 thundering herd / 503 errors | `CircuitBreaker` trips to `OPEN` state after 3 failures in 5s, rejecting tasks with `NakWithDelay(5s)`. | [`breaker.go`](../internal/worker/breaker.go#L45) |
 | **Worker** | Runaway FFmpeg / Disk fill-up | OS Watchdog checks disk space via `syscall.Statfs` and kills FFmpeg with `SIGKILL` if temp files exceed 3GB or 5 minutes. | [`daemon.go`](../internal/worker/daemon.go#L210) |
 | **Worker** | Pod SIGTERM / KEDA scale-down | Worker stops pulling new tasks, enters 300s graceful drain; unacked in-flight tasks time out in JetStream/SQS and redeliver to healthy workers. | [`daemon.go`](../internal/worker/daemon.go#L105) |
-| **Worker** | Corrupted / partial segment upload | Worker uploads to `segment.ts.tmp`, then performs S3 `CopyObject` -> `segment.ts` and deletes `.tmp`. | [`executor.go`](../internal/worker/executor.go#L165) |
+| **Worker** | Corrupted / partial segment upload | Worker writes directly to `segment.ts` using atomic S3 `PutObject`, eliminating intermediate copy/delete latency. | [`executor.go`](../internal/worker/executor.go#L165) |
 | **DLQ** | Unrecoverable task execution error | JetStream retries task 3 times -> routes to `transcode-tasks-dlq` -> Coordinator DLQ Monitor retries with 10s, 20s, 40s backoff -> marks job `FAILED`. | [`dlq.go`](../internal/coordinator/dlq.go#L48) |
 | **GC Daemon** | Abandoned / incomplete jobs in S3 | `JobGCDaemon` sweeps owned partitions every 10 min; if job age > 24h, deletes raw S3 files and sets 24h Redis key TTLs. | [`gc.go`](../internal/coordinator/gc.go#L50) |

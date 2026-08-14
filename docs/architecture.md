@@ -72,15 +72,15 @@ To avoid dual-processing segment tasks from at-least-once message deliveries:
 2. **Slow-path**: If Redis is unreachable (circuit breaker is open), the worker falls back to an S3 `HeadObject` check on the target output segment key.
 3. If either check confirms the segment exists, the worker immediately ACKs the message and skips transcoding.
 
-### State Pipeline & Manifest Compilation ([`manifest.go`](../internal/coordinator/manifest.go))
-1. **Atomic Rename**: Workers upload transcoded segments first as `.tmp` files, copying them to their final `.ts` keys to avoid half-written file reads.
+### State Pipeline & Manifest Compilation ([manifest.go](file:///Users/ashutoshkumar/Desktop/Apple%20Project/internal/coordinator/manifest.go))
+1. **Direct Upload (Single PutObject)**: Workers write directly to their final `.ts` output keys in S3 using a single atomic `PutObject` operation, eliminating unnecessary intermediate `.tmp` copy and delete round-trips.
 2. **Completion Pipeline**: The worker executes a Redis pipeline transaction in one RTT:
    - Sets the completion task lock key.
    - Sets the completion bit in the job progress bitmap.
    - Increments the completed segment count.
-   - Writes the parsed segment duration to a durations hash.
+   - Writes the parsed native MPEG-TS duration to the durations hash.
    - Publishes a progress frame to the progress stream.
-3. **Consistency Barrier**: On job completion, the Coordinator waits 1 second for S3 eventual consistency, checks that the final segment exists via `HeadObject`, and generates the media playlists (HLS master/media + DASH manifest).
+3. **Consistency Barrier**: On job completion, the Coordinator waits 1 second for S3 eventual consistency, checks that the final segment exists via `HeadObject`, and generates the media playlists (RFC 8216 HLS master/media + ISO/IEC 23009-1 DASH manifest).
 
 ---
 

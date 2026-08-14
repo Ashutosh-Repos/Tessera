@@ -169,7 +169,7 @@ func (g *GatewayDaemon) handleListUploadedParts(w http.ResponseWriter, r *http.R
 func (g *GatewayDaemon) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	uuidParam := r.PathValue("uuid")
 	status, err := g.state.GetJobStatus(r.Context(), uuidParam)
-	if err != nil {
+	if err != nil || len(status) == 0 {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}

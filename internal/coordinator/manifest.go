@@ -44,6 +44,12 @@ func (pm *PartitionManager) compileManifests(ctx context.Context, jobID string, 
 		return
 	}
 
+	if manifest.SegmentCount <= 0 {
+		log.Printf("Job %s: invalid segment count %d for compilation", jobID, manifest.SegmentCount)
+		pm.markJobFailed(ctx, jobID, "invalid segment count in manifest")
+		return
+	}
+
 	// 4. Read durations from Redis
 	durations, err := pm.coord.state.GetAllDurations(ctx, jobID)
 	if err != nil {

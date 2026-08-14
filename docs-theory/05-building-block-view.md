@@ -129,7 +129,7 @@ The Coordinator ([`coordinator/`](../internal/coordinator/)) acts as the statefu
 
 The Worker ([`worker/`](../internal/worker/)) serves as the stateless compute engine:
 
-*   **Task Executor ([`executor.go`](../internal/worker/executor.go#L35))**: Pulls `SegmentTask` payloads from NATS shards, checks Redis bitsets for idempotency, issues `msg.InProgress()` heartbeats every 10 seconds, executes hardware-accelerated FFmpeg CLI processes, uploads output to `.tmp` S3 keys, and performs atomic S3 copy-renames.
+*   **Task Executor ([`executor.go`](../internal/worker/executor.go#L35))**: Pulls `SegmentTask` payloads from NATS shards, checks Redis bitsets for idempotency, issues `msg.InProgress()` heartbeats every 10 seconds, executes hardware-accelerated FFmpeg CLI processes, and directly uploads output to `.ts` S3 keys via atomic single PutObject.
 *   **Circuit Breaker ([`breaker.go`](../internal/worker/breaker.go#L20))**: Protects S3/Redis from Thundering Herds. Trips to `OPEN` state after 3 failures in 5 seconds, rejecting tasks with a 5-second cooldown delay (`NakWithDelay`).
 *   **OS Watchdogs ([`daemon.go`](../internal/worker/daemon.go#L210))**: Inspects free scratch disk space via `syscall.Statfs` (requires 10GB min free) and monitors temporary file sizes every 1 second, killing runaway FFmpeg processes (`pkill -9 ffmpeg`) if files exceed 3GB or transcode duration exceeds 5 minutes.
 *   **Graceful Drain Handler ([`daemon.go`](../internal/worker/daemon.go#L105))**: Catches OS `SIGTERM` signals during pod scale-down, stops NATS pullers immediately, and waits up to 300 seconds (`GracefulDrainSec`) for in-flight transcodes to finish cleanly before force-killing remaining processes.
