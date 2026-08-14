@@ -49,7 +49,7 @@
 
 ## ✨ Core Capabilities
 
-Tessera is engineered to run on commodity compute (from a single $10/month VPS to clustered multi-region Kubernetes pools) without per-minute software licensing:
+Tessera is engineered to run on commodity compute (from a single \$10/month VPS to clustered multi-region Kubernetes pools) without per-minute software licensing:
 
 * **Zero-Bandwidth Gateway Edge**: Heavy video bytes flow directly between client browsers and S3/MinIO via cryptographically signed presigned URLs. Gateway nodes handle only lightweight JSON (~5KB per connection).
 * **Faststart Zero-Disk Stream Slicing**: Slices 50GB+ videos directly from S3 TCP streams in memory by reading only the first 1MB `moov` container atom.
@@ -64,13 +64,13 @@ Tessera is engineered to run on commodity compute (from a single $10/month VPS t
 
 | Capability / Metric | 🎬 Tessera (Open Source) | ☁️ AWS Elemental MediaConvert | 🚀 Bitmovin | ⚡ Mux Video | 🌐 Cloudflare Stream |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Pricing Model** | **$0 / min (Self-hosted VM cost only)** | $0.015 – $0.048 / min | $0.025+ / min | $0.005 / min | $1.00 / 1000 min |
-| **Est. Cost per 10,000 hrs/mo** | **~$200 – $800** | ~$14,400 | ~$15,000 | ~$3,000 | ~$600 + storage |
+| **Pricing Model** | **\$0 / min (Self-hosted VM cost only)** | \$0.015 – \\$0.048 / min | \$0.025+ / min | \\$0.005 / min | \$1.00 / 1000 min |
+| **Est. Cost per 10,000 hrs/mo** | **~\$200 – \$800** | ~\$14,400 | ~\$15,000 | ~\$3,000 | ~\$600 + storage |
 | **Multi-Region Consistent Hashing** | ✅ **1024 Virtual Partitions (Etcd)** | ❌ Region-locked queues | ❌ Proprietary | ❌ Black-box SaaS | ❌ Black-box SaaS |
 | **Zero-Disk S3 Stream Slicing** | ✅ **Yes (<1MB moov inspect)** | ❌ Full S3 download | ❌ Full download | ❌ Proprietary | ❌ Proprietary |
 | **Zero-Allocation MPEG-TS Probing** | ✅ **0.36 ns/op (Pure Go)** | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary |
 | **Manifest-Only Cross-Region CRR** | ✅ **>99.99% Egress Savings** | ❌ Full chunk replication | ❌ Proprietary | ❌ Black-box | ❌ Black-box |
-| **Hardware Acceleration** | ✅ **NVENC, VAAPI, VideoToolbox** | ✅ Accelerated tier (+$) | ✅ GPU instances | ✅ Internal | ✅ Internal |
+| **Hardware Acceleration** | ✅ **NVENC, VAAPI, VideoToolbox** | ✅ Accelerated tier (+\$) | ✅ GPU instances | ✅ Internal | ✅ Internal |
 | **Included React 19 UI SDK** | ✅ **Included (`@distributed-transcoder/ui-sdk`)** | ❌ None | ⚠️ Player SDK only | ⚠️ Player only | ⚠️ Player only |
 | **Real-Time Telemetry Multiplexer** | ✅ **1 Redis conn per 50k SSE** | ❌ CloudWatch poll | ❌ Webhook poll | ❌ Webhook poll | ❌ Webhook poll |
 
@@ -108,26 +108,26 @@ Tessera uses a **stateless, shared-nothing 3-tier architecture** with pluggable 
 
 ```mermaid
 graph TD
-    subgraph Tier 1 — Gateway (Stateless Edge)
-        G[API Gateway Daemon]
-        G --> |1. Presigned PUT URLs| S3[(S3 / MinIO Storage)]
-        G --> |2. SSE Progress Fanout| Client[Client Browser / Mobile App]
+    subgraph Tier1 ["Tier 1 — Gateway (Stateless Edge)"]
+        G["API Gateway Daemon"]
+        G --> |"1. Presigned PUT URLs"| S3[("S3 / MinIO Storage")]
+        G --> |"2. SSE Progress Fanout"| Client["Client Browser / Mobile App"]
     end
 
-    subgraph Tier 2 — Coordinator (Control Plane)
-        C[Coordinator Cluster]
-        C --> |Leases & Ring Topology| Etcd[(Etcd Consensus)]
-        C --> |Stream First 1MB & Slice| S3
-        C --> |Publish Chunk Tasks| Bus[(NATS JetStream / AWS SQS)]
-        C --> |Epoch-Fenced Manifests| Redis[(Redis Cluster)]
+    subgraph Tier2 ["Tier 2 — Coordinator (Control Plane)"]
+        C["Coordinator Cluster"]
+        C --> |"Leases & Ring Topology"| Etcd[("Etcd Consensus")]
+        C --> |"Stream First 1MB & Slice"| S3
+        C --> |"Publish Chunk Tasks"| Bus[("NATS JetStream / AWS SQS")]
+        C --> |"Epoch-Fenced Manifests"| Redis[("Redis Cluster")]
     end
 
-    subgraph Tier 3 — Worker Fleet (Compute Plane)
-        W[Transcoding Workers]
-        W --> |Pull Sharded Tasks| Bus
-        W --> |Isolated FFmpeg Subprocess| FFmpeg[FFmpeg CLI / NVENC]
-        W --> |Read Raw Slices & Write HLS/DASH| S3
-        W --> |Single-RTT Pipeline Commits| Redis
+    subgraph Tier3 ["Tier 3 — Worker Fleet (Compute Plane)"]
+        W["Transcoding Workers"]
+        W --> |"Pull Sharded Tasks"| Bus
+        W --> |"Isolated FFmpeg Subprocess"| FFmpeg["FFmpeg CLI / NVENC"]
+        W --> |"Read Raw Slices & Write HLS/DASH"| S3
+        W --> |"Single-RTT Pipeline Commits"| Redis
     end
 ```
 
@@ -165,7 +165,7 @@ To avoid the multi-gigabyte disk penalty of downloading raw uploads:
 * **Non-Faststart (`moov` at end)**: Downloads the file once, relocates the atom via `ffmpeg -movflags +faststart`, and then slices.
 
 ### 3. Consensus Hash Ring & Epoch Fencing
-* **Virtual-Node Ring**: 150 virtual nodes per coordinator mapped across 1024 partitions with logarithmic $O(\log_2 V)$ binary search lookups and zero heap allocations.
+* **Virtual-Node Ring**: 150 virtual nodes per coordinator mapped across 1024 partitions with logarithmic `O(log₂ V)` binary search lookups and zero heap allocations.
 * **Dynamic Rebalancing**: Adding or removing coordinator nodes triggers instant partition redistribution without central database locks.
 * **Epoch Fencing**: Every partition assignment increments a generation epoch in Redis. When compiling playlists, coordinators assert `storedEpoch == activeEpoch`, guaranteeing that stale or partitioned coordinators cannot corrupt active playlists.
 
@@ -235,7 +235,7 @@ Standard SSE architectures allocate one Redis connection per active web client. 
 
 * **Linux cgroups v2 Process Isolation**: Each FFmpeg worker subprocess is sandboxed in a dedicated cgroup with a hard 1.5GB memory limit and a CPU weight of 50. This prevents noisy transcoding tasks from impacting co-located services. (macOS falls back to process grouping and `renice +10`).
 * **Two-Tier Idempotency**: Transcoding tasks perform an ultra-fast Redis `EXISTS` check (<0.1ms). If Redis is unreachable, a circuit breaker falls back to S3 `HeadObject` verification.
-* **Dead Letter Queue (DLQ) & Exponential Backoff**: Unrecoverable chunk failures land in a dedicated DLQ. Coordinators apply exponential backoff ($10\text{s} \times 2^{\text{retry}-1}$) before re-queuing up to `MaxDeliver=3`.
+* **Dead Letter Queue (DLQ) & Exponential Backoff**: Unrecoverable chunk failures land in a dedicated DLQ. Coordinators apply exponential backoff (`10s × 2^(retry-1)`) before re-queuing up to `MaxDeliver=3`.
 * **Proactive Resource Watchdogs**: Active disk pre-flights (`syscall.Statfs`), temp directory file size watchdogs (`SIGKILL` if scratch space exceeds 3GB), stalled transcode detection (process killed if output stops growing for 10s), and a 5-minute task timeout.
 * **Redis Cluster Hash Tag Routing**: All Redis keys for a job include the Job ID wrapped in curly braces (e.g., `job:{jobID}:status`, `progress:{jobID}`), ensuring strict single-slot placement without cross-slot cluster errors.
 
@@ -243,28 +243,28 @@ Standard SSE architectures allocate one Redis connection per active web client. 
 
 ## 📊 Sizing & Cost Economics
 
-Tessera scales sub-linearly: as video volume expands, compute scales horizontally across standard compute instances while licensing cost remains **$0.00**.
+Tessera scales sub-linearly: as video volume expands, compute scales horizontally across standard compute instances while licensing cost remains **\$0.00**.
 
 ### Sizing Tiers vs. AWS Elemental MediaConvert
 
 | Scale Tier | Concurrent Peak | VM Instances (AWS equivalent) | Sizing Config | Est. Tessera Cost/mo | AWS MediaConvert Cost/mo* | Net Savings |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Tier 1 (Developer)** | 1–3 concurrent | 1× `t3.xlarge` (4 vCPUs, 16GB RAM) | 8 partitions, 1 NATS shard | **~$75** | ~$450 | **83%** |
-| **Tier 2 (Startup)** | ~10 concurrent | 2× VMs (`c6i.xlarge` + `m6i.xlarge`) | 32 partitions, 2 NATS shards | **~$200** | ~$1,350 | **85%** |
-| **Tier 3 (Growth)** | ~20 concurrent | 10× VMs (2 GW, 2 Coord, 3 Worker, 2 Redis, 1 NATS, 2 MinIO) | 64 partitions, 2 NATS shards | **~$800** | ~$3,600 | **78%** |
-| **Tier 4 (Decoupled)** | 10–30 concurrent | 16× VMs (includes 3 Sentinel, 4 NVMe MinIO nodes) | 128 partitions, 4 NATS shards | **~$2,000** | ~$9,000 | **78%** |
-| **Tier 5 (Enterprise)** | 300–500 peak | 40+ VMs (16× GPU `g4dn.xlarge`, Redis Cluster, Ceph) | 512 partitions, 16 NATS shards | **~$15,000** | ~$54,000 | **72%** |
-| **Tier 6 (Global)** | 50,000+ peak | 120× GPU `g5.4xlarge` + 60 infra VMs per region | 1024 partitions, 64 NATS shards | **~$100K/region** | $500K+ | **80%** |
+| **Tier 1 (Developer)** | 1–3 concurrent | 1× `t3.xlarge` (4 vCPUs, 16GB RAM) | 8 partitions, 1 NATS shard | **~\$75** | ~\$450 | **83%** |
+| **Tier 2 (Startup)** | ~10 concurrent | 2× VMs (`c6i.xlarge` + `m6i.xlarge`) | 32 partitions, 2 NATS shards | **~\$200** | ~\$1,350 | **85%** |
+| **Tier 3 (Growth)** | ~20 concurrent | 10× VMs (2 GW, 2 Coord, 3 Worker, 2 Redis, 1 NATS, 2 MinIO) | 64 partitions, 2 NATS shards | **~\$800** | ~\$3,600 | **78%** |
+| **Tier 4 (Decoupled)** | 10–30 concurrent | 16× VMs (includes 3 Sentinel, 4 NVMe MinIO nodes) | 128 partitions, 4 NATS shards | **~\$2,000** | ~\$9,000 | **78%** |
+| **Tier 5 (Enterprise)** | 300–500 peak | 40+ VMs (16× GPU `g4dn.xlarge`, Redis Cluster, Ceph) | 512 partitions, 16 NATS shards | **~\$15,000** | ~\$54,000 | **72%** |
+| **Tier 6 (Global)** | 50,000+ peak | 120× GPU `g5.4xlarge` + 60 infra VMs per region | 1024 partitions, 64 NATS shards | **~\$100K/region** | \$500K+ | **80%** |
 
-*\*AWS MediaConvert cost estimate based on standard tier ($0.024/min average) with 5-minute average video length.*
+*\*AWS MediaConvert cost estimate based on standard tier (\$0.024/min average) with 5-minute average video length.*
 
 ### Hardware Acceleration Profiles
 
 | Encoder Mode | FFmpeg Codec | Transcode Speed (vs CPU) | Compute Cost / 1-Hour Video (3 Resolutions) |
 | :--- | :--- | :--- | :--- |
-| **CPU (libx264 fast)** | `libx264` | 1× (~12 min transcode) | ~$0.18 (c6i.xlarge VM time) |
-| **NVIDIA NVENC** | `h264_nvenc` | 6–8× (~2 min transcode) | ~$0.04 (g4dn.xlarge GPU time) |
-| **Intel VAAPI** | `h264_vaapi` | 3–4× (~3.5 min transcode) | ~$0.08 (Commodity Intel Xeon/Core) |
+| **CPU (libx264 fast)** | `libx264` | 1× (~12 min transcode) | ~\$0.18 (c6i.xlarge VM time) |
+| **NVIDIA NVENC** | `h264_nvenc` | 6–8× (~2 min transcode) | ~\$0.04 (g4dn.xlarge GPU time) |
+| **Intel VAAPI** | `h264_vaapi` | 3–4× (~3.5 min transcode) | ~\$0.08 (Commodity Intel Xeon/Core) |
 | **Apple VideoToolbox** | `h264_videotoolbox` | ~4× (~3 min transcode) | Dev / local workstation (Apple Silicon) |
 
 ### Network Egress Savings: Manifest-Only CRR
