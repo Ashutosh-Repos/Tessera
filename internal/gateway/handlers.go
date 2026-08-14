@@ -111,7 +111,18 @@ func (g *GatewayDaemon) handleCreateSession(w http.ResponseWriter, r *http.Reque
 		UploadID:     uploadID,
 		PartSize:     50 * 1024 * 1024,
 		TotalParts:   totalParts,
-		ProgressWSS:  fmt.Sprintf("wss://%s/progress/%s?token=%s", g.cfg.Gateway.ListenAddr, jobID, tokenStr),
+		ProgressWSS:  fmt.Sprintf("wss://%s/progress/%s", g.cfg.Gateway.ListenAddr, jobID),
+	}
+
+	if tokenStr != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "tessera_session_token",
+			Value:    tokenStr,
+			Path:     "/progress/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   86400,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -184,6 +195,11 @@ func (g *GatewayDaemon) handleWebSocketOrSSE(w http.ResponseWriter, r *http.Requ
 	// Validate JWT if secret is set
 	if g.cfg.Gateway.JWTSecret != "" {
 		tokenStr := r.URL.Query().Get("token")
+		if tokenStr == "" {
+			if cookie, err := r.Cookie("tessera_session_token"); err == nil && cookie.Value != "" {
+				tokenStr = cookie.Value
+			}
+		}
 		if tokenStr == "" {
 			authHeader := r.Header.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {

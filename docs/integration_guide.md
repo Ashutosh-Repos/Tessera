@@ -125,12 +125,17 @@ You can either poll the REST status endpoint or listen to the real-time SSE stre
 *(Returns `404 Not Found` if the job does not exist or has expired).*
 
 #### Option B: Real-Time SSE Progress Stream
-- **Request**: `GET /progress/{job_id}?token=<session_token>` (or use the returned `progress_wss` URL)
+- **Request**: `GET /progress/{job_id}` (authenticated via `tessera_session_token` HttpOnly cookie, or `?token=<session_token>` fallback)
 - **Response Headers**: `Content-Type: text/event-stream`
 
 ```typescript
-// Connect to real-time Server-Sent Events with session token
-const sse = new EventSource(`${gatewayUrl}/progress/${jobId}?token=${sessionToken}`);
+// 1. Recommended: Automatic HttpOnly cookie authentication (keeps tokens out of query strings & proxy logs)
+const sse = new EventSource(`${gatewayUrl}/progress/${jobId}`, {
+  withCredentials: true,
+});
+
+// 2. Cross-origin fallback (when cookies cannot be shared across domains):
+// const sse = new EventSource(`${gatewayUrl}/progress/${jobId}?token=${sessionToken}`);
 
 sse.onmessage = (event) => {
   const update = JSON.parse(event.data);

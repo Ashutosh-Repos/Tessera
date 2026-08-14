@@ -198,9 +198,14 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   };
 
   const connectToSSE = (id: string, sessionToken?: string) => {
-    // SSE Progress is mapped from 50% to 100% since upload took 0-50%
-    const tokenQuery = sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : '';
-    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}${tokenQuery}`);
+    // If the browser received the HttpOnly cookie during session initialization,
+    // EventSource connects using credentials without exposing the token in the URL query string.
+    // Query string token is only used as a fallback for cross-origin setups.
+    const isCrossOrigin = typeof window !== 'undefined' && !gatewayUrl.startsWith(window.location.origin);
+    const tokenQuery = (isCrossOrigin && sessionToken) ? `?token=${encodeURIComponent(sessionToken)}` : '';
+    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}${tokenQuery}`, {
+      withCredentials: true,
+    });
     
     eventSource.onmessage = (event) => {
       try {
