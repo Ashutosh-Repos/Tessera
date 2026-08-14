@@ -41,7 +41,7 @@
 - [📈 Observability & Prometheus Telemetry](#-observability--prometheus-telemetry)
 - [⚙️ Configuration & CLI Reference](#️-configuration--cli-reference)
 - [📂 Repository Structure](#-repository-structure)
-- [📖 Unified Documentation](#-unified-documentation)
+- [📖 Documentation](#-documentation)
 - [🤝 Contributing & Community Roadmap](#-contributing--community-roadmap)
 - [⭐ Star History](#-star-history)
 - [📄 License](#-license)
@@ -639,7 +639,7 @@ metrics:
 
 ---
 
-## 📖 Unified Documentation
+## 📖 Documentation
 
 Explore comprehensive deep-dive guides across the documentation suite:
 
@@ -679,11 +679,17 @@ To contribute:
 
 ## ⭐ Star History
 
-If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please give the project a star on GitHub!
+If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please consider giving the repository a star!
 
 <p align="center">
-  <a href="https://star-history.com/#Ashutosh-Repos/Tessera&Date">
-    <img src="https://api.star-history.com/svg?repos=Ashutosh-Repos/Tessera&type=Date&theme=dark" alt="Tessera Star History Chart" width="100%" />
+  <a href="https://github.com/Ashutosh-Repos/Tessera/stargazers">
+    <img src="https://img.shields.io/github/stars/Ashutosh-Repos/Tessera?style=for-the-badge&logo=github&color=238636" alt="GitHub Stars" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#ashutosh-repos/tessera&Date">
+    <img src="https://api.star-history.com/svg?repos=ashutosh-repos/tessera&type=Date&theme=dark" alt="Tessera Star History Chart" width="100%" />
   </a>
 </p>
 
