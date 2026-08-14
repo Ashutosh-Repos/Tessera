@@ -187,13 +187,36 @@ func Test_Coordinator_Slicer_CustomResolutionSubsetting_DispatchesOnlyRequestedV
 		t.Errorf("expected 2 segments uploaded, got %d", count)
 	}
 
-	// 2 segments * 2 resolutions = 4 total dispatched tasks
-	totalPublished := 0
-	for _, tasks := range mockBus.Tasks {
-		totalPublished += len(tasks)
+	// Verify that each dispatched task has the correct segment index and requested resolutions (1080p and 480p only)
+	dispatchedTasks := make(map[string]bool)
+	for _, shardTasks := range mockBus.Tasks {
+		for _, msg := range shardTasks {
+			var task models.SegmentTask
+			if err := json.Unmarshal(msg.Data(), &task); err != nil {
+				t.Fatalf("failed to unmarshal published task: %v", err)
+			}
+			if task.Resolution != models.Res1080p && task.Resolution != models.Res480p {
+				t.Errorf("unexpected resolution in published task: %s", task.Resolution)
+			}
+			if task.SegmentIdx < 0 || task.SegmentIdx > 1 {
+				t.Errorf("unexpected segment index in published task: %d", task.SegmentIdx)
+			}
+			key := fmt.Sprintf("%d:%s", task.SegmentIdx, task.Resolution)
+			if dispatchedTasks[key] {
+				t.Errorf("duplicate task dispatched for %s", key)
+			}
+			dispatchedTasks[key] = true
+		}
 	}
-	if totalPublished != 4 {
-		t.Errorf("expected 4 published tasks for custom resolution subset, got %d", totalPublished)
+
+	expectedKeys := []string{"0:1080p", "0:480p", "1:1080p", "1:480p"}
+	for _, k := range expectedKeys {
+		if !dispatchedTasks[k] {
+			t.Errorf("missing expected dispatched task for %s", k)
+		}
+	}
+	if len(dispatchedTasks) != 4 {
+		t.Errorf("expected exactly 4 unique dispatched tasks, got %d", len(dispatchedTasks))
 	}
 }
 

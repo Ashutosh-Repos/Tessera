@@ -24,13 +24,15 @@ interface VideoUploaderProps {
   onUploadSuccess?: (hlsUrl: string) => void;
   className?: string;
   classNames?: VideoUploaderClassNames;
+  allowSimulation?: boolean; // Development-only simulation mode
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({ 
   gatewayUrl, 
   onUploadSuccess,
   className,
-  classNames = {}
+  classNames = {},
+  allowSimulation = false
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -56,13 +58,13 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     e.preventDefault();
     setIsDragging(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+    if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
   };
@@ -71,7 +73,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     if (!file) return;
     setStatus('uploading');
     setProgress(0);
-    setStatusMessage('Initializing Upload...');
+    setStatusMessage('Initializing Upload Session...');
 
     try {
       // Step 1: Create Upload Session
@@ -154,11 +156,18 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       setStatusMessage('Distributed Transcoding Active...');
       
       // Step 5: Listen to SSE for Transcode Progress
-      connectToSSE(jId);
+      connectToSSE(jId, token);
       
-    } catch (err) {
-      console.warn("Backend connection unavailable, running Standalone Simulation Mode:", err);
-      runSimulationUpload(file);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown upload failure';
+      console.error("Upload process error:", err);
+      if (allowSimulation) {
+        console.warn("Explicit simulation fallback active:", err);
+        runSimulationUpload(file);
+      } else {
+        setStatus('error');
+        setStatusMessage(`Upload failed: ${errMsg}`);
+      }
     }
   };
 
@@ -188,9 +197,10 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     }, 400);
   };
 
-  const connectToSSE = (id: string) => {
+  const connectToSSE = (id: string, sessionToken?: string) => {
     // SSE Progress is mapped from 50% to 100% since upload took 0-50%
-    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}`);
+    const tokenQuery = sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : '';
+    const eventSource = new EventSource(`${gatewayUrl}/progress/${id}${tokenQuery}`);
     
     eventSource.onmessage = (event) => {
       try {

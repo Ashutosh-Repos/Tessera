@@ -2,6 +2,7 @@ package models_test
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -62,8 +63,9 @@ func Test_Models_JobManifest_JSONRoundTrip(t *testing.T) {
 		decoded.OwnerEpoch != manifest.OwnerEpoch || decoded.Region != manifest.Region ||
 		decoded.SourcePath != manifest.SourcePath || decoded.SourceSizeB != manifest.SourceSizeB ||
 		decoded.SourceCodec != manifest.SourceCodec || decoded.SourceFPS != manifest.SourceFPS ||
-		decoded.DurationSec != manifest.DurationSec || len(decoded.Resolutions) != len(manifest.Resolutions) ||
-		decoded.SegmentCount != manifest.SegmentCount || decoded.TotalTasks != manifest.TotalTasks {
+		decoded.DurationSec != manifest.DurationSec || !reflect.DeepEqual(decoded.Resolutions, manifest.Resolutions) ||
+		decoded.SegmentCount != manifest.SegmentCount || decoded.TotalTasks != manifest.TotalTasks ||
+		!decoded.CreatedAt.Equal(manifest.CreatedAt) {
 		t.Errorf("manifest roundtrip mismatch: %+v vs %+v", decoded, manifest)
 	}
 }

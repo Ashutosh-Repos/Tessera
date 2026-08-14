@@ -125,9 +125,24 @@ You can either poll the REST status endpoint or listen to the real-time SSE stre
 *(Returns `404 Not Found` if the job does not exist or has expired).*
 
 #### Option B: Real-Time SSE Progress Stream
-- **Request**: `GET /progress/{job_id}?token=<session_token>`
+- **Request**: `GET /progress/{job_id}?token=<session_token>` (or use the returned `progress_wss` URL)
 - **Response Headers**: `Content-Type: text/event-stream`
-- **Events Output**:
+
+```typescript
+// Connect to real-time Server-Sent Events with session token
+const sse = new EventSource(`${gatewayUrl}/progress/${jobId}?token=${sessionToken}`);
+
+sse.onmessage = (event) => {
+  const update = JSON.parse(event.data);
+  console.log(`[${update.phase}] Progress: ${update.pct || 0}%`);
+  if (update.phase === 'COMPLETED') {
+    console.log('Playback HLS Master URL:', update.hls_url);
+    sse.close();
+  }
+};
+```
+
+- **Events Output Stream**:
 ```http
 data: {"phase":"SLICING"}
 

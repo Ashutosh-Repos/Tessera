@@ -162,7 +162,7 @@ For maximum developer visibility, optimize your profile to clearly state what yo
 #### 5. Banner & Visual Identity
 *   **Avatar:** A high-quality photo of yourself (for personal) or the Tessera logo (for project).
 *   **Banner:** A highly professional chalkboard-styled HLD architecture diagram featuring custom developer icons (shield for API Gateway, cylinders for Redis/S3, message pipeline for NATS, stacked servers/gears for Worker Fleet). It is formatted to exactly 1500x500 pixels (3:1 aspect ratio). You can find it here: [tessera_final_banner.png](./tessera_final_banner.png).
-    ![Tessera Blackboard HLD Banner](/Users/ashutoshkumar/Desktop/Apple Project/lauch/tessera_final_banner.png)
+    ![Tessera Blackboard HLD Banner](./tessera_final_banner.png)
 
 #### 6. Pinned Tweet Strategy
 *   Post the **Launch Thread** (from the section above) and pin it to the top of your profile. This is the first thing developers will see when they visit your profile from search or retweets.

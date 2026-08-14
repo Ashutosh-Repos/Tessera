@@ -80,7 +80,7 @@ Enforce a **shared-nothing, decoupled resource design** where compute nodes are 
 Workers must measure the exact presentation timestamp (PTS) duration of each output `.ts` segment to compile accurate HLS and DASH manifests. Spawning `ffprobe` for every segment adds 15–30ms of process fork overhead per segment and increases host OS context switches under heavy load.
 
 ### Decision
-Implement a pure-Go, native MPEG-TS container parser (`ProbeDurationGo` in [`internal/worker/pts.go`](../internal/worker/pts.go)).
+Implement a pure-Go, native MPEG-TS container parser (`ProbeDurationGo` in [`internal/worker/validate.go`](../internal/worker/validate.go)).
 - Directly scans 188-byte MPEG-TS packets looking for sync byte `0x47` and adaptation field headers.
 - Decodes 33-bit Presentation Time Stamps (PTS) at 90 kHz clock rate with integer arithmetic and 33-bit rollover handling.
 - Executes completely in-process in sub-microsecond time ($0.36\text{ ns/op}$) with 0 heap allocations.

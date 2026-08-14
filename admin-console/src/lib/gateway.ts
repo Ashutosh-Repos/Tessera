@@ -35,12 +35,18 @@ export class GatewayClient {
     this.apiKey = apiKey;
   }
 
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
   private getHeaders(): HeadersInit {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    // Prioritize explicit instance key or user-bound session token
+    const token = this.apiKey || (typeof window !== 'undefined' ? (sessionStorage.getItem('tessera_admin_token') || localStorage.getItem('tessera_admin_token') || undefined) : undefined);
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
   }
@@ -101,12 +107,11 @@ export class GatewayClient {
   }
 }
 
-// Pre-configured clients for known regions using environment variables
-const adminApiKey = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_ADMIN_API_KEY || '';
+// Pre-configured clients for known regions with regional gateway endpoints
 const usEastUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || 'http://localhost:8080';
 const euWestUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_EU_API_BASE_URL || 'http://localhost:8090';
 
-export const regions = {
-  'us-east': new GatewayClient(usEastUrl, adminApiKey),
-  'eu-west': new GatewayClient(euWestUrl, adminApiKey),
+export const regions: Record<string, GatewayClient> = {
+  'us-east': new GatewayClient(usEastUrl),
+  'eu-west': new GatewayClient(euWestUrl),
 };
