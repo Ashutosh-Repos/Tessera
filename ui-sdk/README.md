@@ -17,7 +17,7 @@ pnpm add @distributed-transcoder/ui-sdk
 ## 🛠️ Components & Usage
 
 ### 1. `VideoUploader`
-Handles chunked client-side multipart S3 uploads with automatic retry, presigned URL batching, and real-time SSE progress updates.
+Handles chunked client-side multipart S3 uploads with batched presigned URLs (up to 100 parts/batch) and real-time SSE progress streaming.
 
 ```tsx
 import React from 'react';
@@ -26,14 +26,11 @@ import { VideoUploader } from '@distributed-transcoder/ui-sdk';
 export function UploadPage() {
   return (
     <VideoUploader
-      apiBaseUrl="https://api.tessera.io"
-      onUploadStart={(jobId) => console.log('Upload started:', jobId)}
-      onProgress={(pct) => console.log(`Progress: ${pct}%`)}
-      onComplete={(result) => {
-        console.log('HLS Playlist:', result.hlsUrl);
-        console.log('DASH Manifest:', result.dashUrl);
+      gatewayUrl="https://api.tessera.io"
+      onUploadSuccess={(hlsUrl) => {
+        console.log('Transcoding complete! HLS Master Playlist:', hlsUrl);
       }}
-      onError={(err) => console.error('Upload failed:', err)}
+      className="max-w-xl mx-auto"
     />
   );
 }

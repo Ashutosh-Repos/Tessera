@@ -218,5 +218,5 @@ chat:
 knowledge_base:
   opt_out: false
   learnings:
-    scope: "org"
+    scope: "global"
 
