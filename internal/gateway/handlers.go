@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -115,12 +115,18 @@ func (g *GatewayDaemon) handleCreateSession(w http.ResponseWriter, r *http.Reque
 	}
 
 	if tokenStr != "" {
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		sameSite := http.SameSiteLaxMode
+		if isSecure {
+			sameSite = http.SameSiteNoneMode
+		}
 		http.SetCookie(w, &http.Cookie{
 			Name:     "tessera_session_token",
 			Value:    tokenStr,
-			Path:     "/progress/",
+			Path:     fmt.Sprintf("/progress/%s", url.PathEscape(jobID)),
 			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
+			Secure:   isSecure,
+			SameSite: sameSite,
 			MaxAge:   86400,
 		})
 	}
