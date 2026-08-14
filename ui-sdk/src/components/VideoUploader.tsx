@@ -90,11 +90,11 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       
       setJobId(jId);
 
-      // Step 2 & 3: Chunk and Upload with Batched Presigned URLs (max 100 parts/batch)
+      // Step 2 & 3: Chunk and Upload with Just-in-Time Batched Presigned URLs (batch size 25)
       setStatusMessage('Uploading Media Chunks...');
-      const uploadedParts = [];
+      const uploadedParts: Array<{ part_number: number; etag: string }> = [];
       let uploadedBytes = 0;
-      const batchSize = 100;
+      const batchSize = 25;
 
       for (let batchStart = 1; batchStart <= totalParts; batchStart += batchSize) {
         const batchCount = Math.min(batchSize, totalParts - batchStart + 1);
@@ -123,13 +123,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           if (!uploadRes.ok) throw new Error(`Failed to upload part ${partNumber}`);
           
-          let etag = uploadRes.headers.get('ETag');
-          if (!etag) {
-            etag = `dummy-etag-${partNumber}`;
-            console.warn("ETag missing from response headers, using fallback");
+          const rawEtag = uploadRes.headers.get('ETag');
+          if (!rawEtag) {
+            throw new Error(`S3 response for part ${partNumber} did not return an ETag header. Please verify your S3/MinIO CORS configuration exposes the 'ETag' header (ExposeHeaders: ["ETag"]).`);
           }
-
-          uploadedParts.push({ part_number: partNumber, etag: etag });
+          const cleanEtag = rawEtag.replace(/^"|"$/g, '');
+          uploadedParts.push({ part_number: partNumber, etag: `"${cleanEtag}"` });
           uploadedBytes += chunk.size;
           
           // Update progress just for upload phase (0 to 50%)

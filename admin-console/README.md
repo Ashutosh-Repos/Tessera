@@ -65,7 +65,7 @@ VITE_WS_TELEMETRY_URL=ws://localhost:8080/telemetry
 
 ## 📦 Project Structure
 
-```
+```text
 admin-console/
 ├── src/
 │   ├── components/       # Cluster graphs, Worker fleet cards, Job tables

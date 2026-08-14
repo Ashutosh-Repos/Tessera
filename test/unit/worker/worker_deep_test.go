@@ -126,8 +126,11 @@ func Test_Worker_ProbeDuration_33BitPTSWrapAround_CorrectArithmetic(t *testing.T
 	if err != nil {
 		t.Fatalf("failed to parse duration string %q: %v", durStr, err)
 	}
-	if dur <= 0.0 {
-		t.Errorf("expected positive valid duration on 33-bit PTS wraparound, got %f", dur)
+	// pts1 is 1s before the 33-bit wrap, pts2 is 1s after it (diff=2.0s, frameDur=2.0s -> total=4.0s)
+	const wantDur = 4.0
+	const tolerance = 0.05
+	if dur < wantDur-tolerance || dur > wantDur+tolerance {
+		t.Errorf("expected duration %.3fs across the 33-bit PTS wraparound, got %fs", wantDur, dur)
 	}
 }
 

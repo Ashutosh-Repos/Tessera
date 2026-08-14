@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -208,10 +209,11 @@ func (e *EtcdClient) ReleaseSlicingLock(ctx context.Context, jobID string) error
 	if hasMutex && mutex != nil {
 		unlockErr = mutex.Unlock(ctx)
 	}
+	var closeErr error
 	if hasSession && session != nil {
-		session.Close()
+		closeErr = session.Close()
 	}
-	return unlockErr
+	return errors.Join(unlockErr, closeErr)
 }
 
 func (e *EtcdClient) KeepAliveLock(ctx context.Context, leaseID int64) error {

@@ -197,15 +197,19 @@ func (r *RedisStore) DeduplicateEvent(ctx context.Context, jobID string) (bool, 
 }
 
 func (r *RedisStore) IncrRateLimit(ctx context.Context, key string, windowSec int) (int64, error) {
-	// Atomic INCR + EXPIRE via pipeline
-	pipe := r.client.Pipeline()
-	incr := pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, time.Duration(windowSec)*time.Second)
-	_, err := pipe.Exec(ctx)
+	// Atomic INCR + conditional EXPIRE (only on key creation, preserving the window anchor)
+	script := `
+		local current = redis.call('INCR', KEYS[1])
+		if current == 1 then
+			redis.call('EXPIRE', KEYS[1], ARGV[1])
+		end
+		return current
+	`
+	res, err := r.client.Eval(ctx, script, []string{key}, windowSec).Int64()
 	if err != nil {
 		return 0, err
 	}
-	return incr.Val(), nil
+	return res, nil
 }
 
 func (r *RedisStore) ExecuteCompletionPipeline(ctx context.Context, p CompletionPipelineParams) error {

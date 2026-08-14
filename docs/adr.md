@@ -80,7 +80,7 @@ Enforce a **shared-nothing, decoupled resource design** where compute nodes are 
 Workers must measure the exact presentation timestamp (PTS) duration of each output `.ts` segment to compile accurate HLS and DASH manifests. Spawning `ffprobe` for every segment adds 15–30ms of process fork overhead per segment and increases host OS context switches under heavy load.
 
 ### Decision
-Implement a pure-Go, native MPEG-TS container parser (`ProbeDurationGo` in [`internal/worker/pts.go`](file:///Users/ashutoshkumar/Desktop/Apple%20Project/internal/worker/pts.go)).
+Implement a pure-Go, native MPEG-TS container parser (`ProbeDurationGo` in [`internal/worker/pts.go`](../internal/worker/pts.go)).
 - Directly scans 188-byte MPEG-TS packets looking for sync byte `0x47` and adaptation field headers.
 - Decodes 33-bit Presentation Time Stamps (PTS) at 90 kHz clock rate with integer arithmetic and 33-bit rollover handling.
 - Executes completely in-process in sub-microsecond time ($0.36\text{ ns/op}$) with 0 heap allocations.
@@ -98,7 +98,7 @@ Implement a pure-Go, native MPEG-TS container parser (`ProbeDurationGo` in [`int
 Coordinator nodes constantly evaluate partition ownership across 1024 partitions and up to 150,000 virtual nodes (`OwnerOf`). Traditional dynamic string formatting (e.g. `fmt.Sprintf("partition:%d", partitionID)`) creates heap allocations on every lookup, inducing Go GC pressure at high concurrency.
 
 ### Decision
-Implement stack-buffered FNV-1a hashing (`hashPartitionKey` in [`internal/coordinator/ring.go`](file:///Users/ashutoshkumar/Desktop/Apple%20Project/internal/coordinator/ring.go)) using a fixed `[20]byte` stack array and standard library binary search `sort.Search`.
+Implement stack-buffered FNV-1a hashing (`hashPartitionKey` in [`internal/coordinator/ring.go`](../internal/coordinator/ring.go)) using a fixed `[20]byte` stack array and standard library binary search `sort.Search`.
 
 ### Consequences
 - **Positive**: Exact $O(\log_2 V)$ binary search scaling; **0 B/op** (0 heap allocations) on lookup hot paths; sub-65ns lookup latency.

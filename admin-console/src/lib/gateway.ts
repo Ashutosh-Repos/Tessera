@@ -101,8 +101,12 @@ export class GatewayClient {
   }
 }
 
-// Pre-configured clients for known regions
+// Pre-configured clients for known regions using environment variables
+const adminApiKey = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_ADMIN_API_KEY || '';
+const usEastUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || 'http://localhost:8080';
+const euWestUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_EU_API_BASE_URL || 'http://localhost:8090';
+
 export const regions = {
-  'us-east': new GatewayClient('http://localhost:8080', 'admin-secret-token'),
-  'eu-west': new GatewayClient('http://localhost:8090', 'admin-secret-token'),
+  'us-east': new GatewayClient(usEastUrl, adminApiKey),
+  'eu-west': new GatewayClient(euWestUrl, adminApiKey),
 };

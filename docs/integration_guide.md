@@ -88,9 +88,9 @@ Tell Tessera to assemble the S3 chunks and kick off the transcoding pipeline.
 ### Step 5: Query Job Status or Stream Real-Time Progress
 You can either poll the REST status endpoint or listen to the real-time SSE stream.
 
-#### Option A: Polling Job Status
+#### Option A: Polling Job Status (REST)
 - **Request**: `GET /api/jobs/{job_id}/status`
-- **Response (200 OK)**:
+- **Response (200 OK - Transcoding)**:
 ```json
 {
   "job_id": "us-east:550e8400-e29b-41d4-a716-446655440000",
@@ -101,27 +101,7 @@ You can either poll the REST status endpoint or listen to the real-time SSE stre
   "last_updated": "1723637890"
 }
 ```
-*(Returns `404 Not Found` if the job does not exist or has expired).*
-
-#### Option B: Real-Time SSE Progress Stream
-- **Request**: `GET /progress/{job_id}?token=<session_token>`
-- **Response Headers**: `Content-Type: text/event-stream`
-- **Events Output**:
-```http
-data: {"phase":"SLICING"}
-
-data: {"phase":"TRANSCODING","completed":12,"total":60,"pct":20}
-
-data: {"phase":"COMPLETED","hls_url":"https://s3/master.m3u8","dash_url":"https://s3/manifest.mpd","sprite":"https://s3/sprite.jpg","sprite_vtt":"https://s3/sprite.vtt","thumbnails":["https://s3/thumb_0.jpg","https://s3/thumb_1.jpg"],"width":1920,"height":1080,"fps":30,"duration":102.43}
-```
-
----
-
-### Step 6: Poll Status (Alternative to SSE)
-If you do not want to use SSE, you can poll the job status directly from the Redis status hash.
-
-- **Request**: `GET /api/jobs/{job_id}/status`
-- **Response (200 OK)**:
+- **Response (200 OK - Completed)**:
 ```json
 {
   "completed": "60",
@@ -141,6 +121,19 @@ If you do not want to use SSE, you can poll the job status directly from the Red
   "total": "60",
   "width": "1920"
 }
+```
+*(Returns `404 Not Found` if the job does not exist or has expired).*
+
+#### Option B: Real-Time SSE Progress Stream
+- **Request**: `GET /progress/{job_id}?token=<session_token>`
+- **Response Headers**: `Content-Type: text/event-stream`
+- **Events Output**:
+```http
+data: {"phase":"SLICING"}
+
+data: {"phase":"TRANSCODING","completed":12,"total":60,"pct":20}
+
+data: {"phase":"COMPLETED","hls_url":"https://s3/master.m3u8","dash_url":"https://s3/manifest.mpd","sprite":"https://s3/sprite.jpg","sprite_vtt":"https://s3/sprite.vtt","thumbnails":["https://s3/thumb_0.jpg","https://s3/thumb_1.jpg"],"width":1920,"height":1080,"fps":30,"duration":102.43}
 ```
 
 ---

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/distributed-transcoder/internal/config"
@@ -261,7 +262,7 @@ func (s *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 		}
 
 		if len(objectsToDelete) > 0 {
-			_, err = s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			delOut, err := s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 				Bucket: aws.String(s.bucket),
 				Delete: &types.Delete{
 					Objects: objectsToDelete,
@@ -270,6 +271,21 @@ func (s *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 			})
 			if err != nil {
 				return err
+			}
+			if delOut != nil && len(delOut.Errors) > 0 {
+				var errMsgs []string
+				for _, delErr := range delOut.Errors {
+					k := "<nil>"
+					if delErr.Key != nil {
+						k = *delErr.Key
+					}
+					m := "<nil>"
+					if delErr.Message != nil {
+						m = *delErr.Message
+					}
+					errMsgs = append(errMsgs, fmt.Sprintf("%s: %s", k, m))
+				}
+				return fmt.Errorf("failed to delete %d objects: %s", len(delOut.Errors), strings.Join(errMsgs, ", "))
 			}
 		}
 	}

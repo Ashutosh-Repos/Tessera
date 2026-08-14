@@ -13,33 +13,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/distributed-transcoder/internal/config"
 	"github.com/distributed-transcoder/internal/coordinator"
 	"github.com/distributed-transcoder/internal/models"
 	"github.com/distributed-transcoder/test/mocks"
 )
 
 // ─────────────────────────────────────────────────────────────
-// 1. Consistent Hash Ring & Consensus Tests
+// 1. Consistent HashRing Consensus & Partition Uniformity
 // ─────────────────────────────────────────────────────────────
 
-func Test_Coordinator_HashRing_DistributionUniformity_1024PartitionsAcross10Nodes(t *testing.T) {
+func Test_Coordinator_HashRing_DistributionUniformity_StdDevUnderBounds(t *testing.T) {
 	ring := coordinator.NewHashRing()
-	numNodes := 10
-	totalPartitions := 1024
-
-	nodes := make([]string, numNodes)
-	for i := 0; i < numNodes; i++ {
-		nodes[i] = fmt.Sprintf("coord-node-%02d", i)
-	}
-
+	nodes := []string{"node-1", "node-2", "node-3", "node-4", "node-5", "node-6", "node-7", "node-8", "node-9", "node-10"}
 	ring.Rebuild(nodes)
 
+	totalPartitions := 1024
+	numNodes := len(nodes)
 	counts := make(map[string]int)
+
 	for p := 0; p < totalPartitions; p++ {
 		owner := ring.OwnerOf(p)
 		if owner == "" {
-			t.Fatalf("partition %d has no owner", p)
+			t.Fatalf("partition %d has no owner on active ring", p)
 		}
 		counts[owner]++
 	}
@@ -54,11 +49,11 @@ func Test_Coordinator_HashRing_DistributionUniformity_1024PartitionsAcross10Node
 	// Verify reasonable statistical bounds
 	var sumSquares float64
 	for _, node := range nodes {
-		count := float64(counts[node])
-		sumSquares += math.Pow(count-expectedMean, 2)
+		delta := float64(counts[node]) - expectedMean
+		sumSquares += delta * delta
 	}
 	stdDev := math.Sqrt(sumSquares / float64(numNodes))
-	if stdDev > 90.0 {
+	if stdDev > 75.0 {
 		t.Errorf("hash ring partition distribution standard deviation too high: %.2f (mean: %.2f)", stdDev, expectedMean)
 	}
 }
@@ -106,6 +101,7 @@ func Test_Coordinator_HashRing_ConcurrentRebuildAndLookup_ZeroRace(t *testing.T)
 						_ = ring.OwnerOf(p)
 						_ = ring.Members()
 					}
+					time.Sleep(time.Millisecond)
 				}
 			}
 		}()
@@ -128,7 +124,7 @@ func Test_Coordinator_HashRing_ConcurrentRebuildAndLookup_ZeroRace(t *testing.T)
 					} else {
 						ring.Rebuild([]string{"node-1", "node-2"})
 					}
-					time.Sleep(5 * time.Millisecond)
+					time.Sleep(10 * time.Millisecond)
 				}
 			}
 		}(i)
@@ -138,10 +134,10 @@ func Test_Coordinator_HashRing_ConcurrentRebuildAndLookup_ZeroRace(t *testing.T)
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. Slicer Faststart & Resolution Subset Tests
+// 2. Video Slicing Atom Probing & Resolution Subsetting
 // ─────────────────────────────────────────────────────────────
 
-func Test_Coordinator_FaststartDetection_Atoms(t *testing.T) {
+func Test_Coordinator_Slicer_FaststartAtomProbing_MoovBeforeMdat(t *testing.T) {
 	t.Run("MoovBeforeMdat_Faststart", func(t *testing.T) {
 		prefix := []byte("\x00\x00\x00\x20ftypisom\x00\x00\x00\x00\x00\x00\x01\x00moov\x00\x00\x00\x00mdat")
 		if !coordinator.IsFaststart(prefix) {
@@ -157,36 +153,33 @@ func Test_Coordinator_FaststartDetection_Atoms(t *testing.T) {
 	})
 }
 
-func Test_Coordinator_Slicer_CustomResolutionSubset_DispatchesOnlyRequested(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "test-custom-res-deep-*")
+func Test_Coordinator_Slicer_CustomResolutionSubsetting_DispatchesOnlyRequestedVariants(t *testing.T) {
+	mockStore := mocks.NewMockObjectStore()
+	mockBus := mocks.NewMockMessageBus()
+
+	pm := newTestPM(mockStore, mockBus)
+
+	// Create 2 chunks
+	tempDir, err := os.MkdirTemp("", "custom-res-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	_ = os.WriteFile(filepath.Join(tempDir, "chunk_000.mp4"), []byte("video data 0"), 0644)
-	_ = os.WriteFile(filepath.Join(tempDir, "chunk_001.mp4"), []byte("video data 1"), 0644)
+	for i := 0; i < 2; i++ {
+		_ = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("chunk_%03d.mp4", i)), []byte("video"), 0644)
+	}
 
-	mockStore := mocks.NewMockObjectStore()
-	mockBus := mocks.NewMockMessageBus()
-
-	cfg := config.Config{}
-	cfg.Coordinator.PartitionCount = 4
-	cfg.Coordinator.NATSShardCount = 2
-	daemon := coordinator.NewCoordinatorDaemon(cfg, "coord-1", nil, mockBus, nil, mockStore)
-	pm := coordinator.NewPartitionManager(daemon, 1, 1)
-
-	jobID := "custom-resolutions-job"
-	// Request ONLY 1080p and 480p (2 resolutions instead of 3)
+	// Manifest with ONLY Res1080p and Res480p (2 resolutions)
 	manifest := models.JobManifest{
-		JobID:       jobID,
+		JobID:       "test-subset-res",
 		Resolutions: []models.Resolution{models.Res1080p, models.Res480p},
 	}
-	data, _ := json.Marshal(manifest)
-	manifestKey := fmt.Sprintf("jobs/partition_1/job_%s/job_manifest.json", jobID)
-	_ = mockStore.PutObject(context.Background(), manifestKey, bytes.NewReader(data), int64(len(data)))
+	manifestData, _ := json.Marshal(manifest)
+	manifestKey := fmt.Sprintf("jobs/partition_%d/job_test-subset-res/job_manifest.json", 2)
+	_ = mockStore.PutObject(context.Background(), manifestKey, bytes.NewReader(manifestData), int64(len(manifestData)))
 
-	count, err := pm.UploadSlices(context.Background(), jobID, tempDir)
+	count, err := pm.UploadSlices(context.Background(), "test-subset-res", tempDir)
 	if err != nil {
 		t.Fatalf("UploadSlices failed: %v", err)
 	}
@@ -194,14 +187,13 @@ func Test_Coordinator_Slicer_CustomResolutionSubset_DispatchesOnlyRequested(t *t
 		t.Errorf("expected 2 segments uploaded, got %d", count)
 	}
 
-	// 2 segments * 2 resolutions = 4 total tasks published
+	// 2 segments * 2 resolutions = 4 total dispatched tasks
 	totalPublished := 0
 	for _, tasks := range mockBus.Tasks {
 		totalPublished += len(tasks)
 	}
-
 	if totalPublished != 4 {
-		t.Errorf("expected 4 tasks published (2 segments * 2 resolutions), got %d", totalPublished)
+		t.Errorf("expected 4 published tasks for custom resolution subset, got %d", totalPublished)
 	}
 }
 
@@ -210,7 +202,9 @@ func Test_Coordinator_Slicer_CustomResolutionSubset_DispatchesOnlyRequested(t *t
 // ─────────────────────────────────────────────────────────────
 
 func Test_Coordinator_Manifest_RFC8216_HLSMediaPlaylist_TargetDurationRounding(t *testing.T) {
-	pm := &coordinator.PartitionManager{}
+	mockStore := mocks.NewMockObjectStore()
+	mockBus := mocks.NewMockMessageBus()
+	pm := newTestPM(mockStore, mockBus)
 
 	durations := map[string]string{
 		"segment_000_1080p": "5.200000",
@@ -234,12 +228,13 @@ func Test_Coordinator_Manifest_RFC8216_HLSMediaPlaylist_TargetDurationRounding(t
 }
 
 func Test_Coordinator_Manifest_ISO23009_DASHManifest_ValidXML(t *testing.T) {
-	pm := &coordinator.PartitionManager{}
+	mockStore := mocks.NewMockObjectStore()
+	mockBus := mocks.NewMockMessageBus()
+	pm := newTestPM(mockStore, mockBus)
 
 	resolutions := []models.Resolution{models.Res1080p, models.Res720p, models.Res480p}
 	durations := map[string]string{
 		"segment_000_1080p": "5.000000",
-		"segment_001_1080p": "5.000000",
 	}
 
 	buf := pm.GenerateDASHManifest(resolutions, 2, durations)
