@@ -1,5 +1,9 @@
 # Tessera Core Architecture & Engineering Design
 
+<p align="center">
+  <img src="../lauch/tessera_chalk_banner.png" alt="Tessera HLD Chalk Sketch" width="100%" />
+</p>
+
 Tessera is a decoupled, highly parallel, cloud-agnostic VOD engine. It consists of three independent components collaborating over standard messaging, state, and storage backends.
 
 ```

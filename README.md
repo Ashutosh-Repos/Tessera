@@ -9,6 +9,10 @@
 [![Consensus](https://img.shields.io/badge/Consensus-Etcd-lightblue)](https://etcd.io)
 [![Storage](https://img.shields.io/badge/Storage-S3%20%2F%20MinIO-orange)](https://min.io)
 
+<p align="center">
+  <img src="lauch/tessera_final_banner.png" alt="Tessera Architecture Blackboard HLD Banner" width="100%" />
+</p>
+
 Tessera is a cloud-agnostic, multi-region video ingestion and distributed transcoding engine built for global-scale platforms. It serves as an enterprise-grade, open-source alternative to AWS Elemental MediaConvert and Bitmovin. By eliminating per-minute transcoding fees, Tessera is designed to run on your own compute infrastructure, scaling dynamically from a **developer sandbox (10K users)** on a single VM to a **global-scale network (50M+ active users)** running on clustered Kubernetes pools.
 
 ---
