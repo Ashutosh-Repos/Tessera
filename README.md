@@ -14,6 +14,8 @@
   <a href="https://github.com/Ashutosh-Repos/Tessera/actions/workflows/ci.yml"><img src="https://github.com/Ashutosh-Repos/Tessera/actions/workflows/ci.yml/badge.svg" alt="CI Workflow" /></a>
   <a href="https://goreportcard.com/report/github.com/Ashutosh-Repos/Tessera"><img src="https://goreportcard.com/badge/github.com/Ashutosh-Repos/Tessera" alt="Go Report Card" /></a>
   <a href="https://github.com/Ashutosh-Repos/Tessera/releases/tag/v1.0.0"><img src="https://img.shields.io/github/v/release/Ashutosh-Repos/Tessera?color=00ADD8&label=Latest%20Release" alt="Latest Release" /></a>
+  <a href="https://github.com/Ashutosh-Repos/Tessera/commits/main"><img src="https://img.shields.io/github/last-commit/Ashutosh-Repos/Tessera?color=388bfd&logo=github&label=Last%20Commit" alt="Last Commit" /></a>
+  <a href="https://github.com/Ashutosh-Repos/Tessera/commits/main"><img src="https://img.shields.io/github/commit-activity/m/Ashutosh-Repos/Tessera?color=388bfd&logo=git&label=Activity" alt="Commit Activity" /></a>
   <a href="https://golang.org"><img src="https://img.shields.io/github/go-mod/go-version/Ashutosh-Repos/Tessera?color=00ADD8&logo=go" alt="Go Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="https://nats.io"><img src="https://img.shields.io/badge/Messaging-NATS%20JetStream%20%7C%20SQS-375C96?logo=nats.io" alt="Messaging" /></a>
@@ -43,7 +45,7 @@
 - [📂 Repository Structure](#-repository-structure)
 - [📖 Documentation](#-documentation)
 - [🤝 Contributing & Community Roadmap](#-contributing--community-roadmap)
-- [⭐ Community & Support](#-community--support)
+- [⭐ Community & Activity](#-community--activity)
 - [📄 License](#-license)
 
 ---
@@ -677,7 +679,7 @@ To contribute:
 
 ---
 
-## ⭐ Community & Support
+## ⭐ Community & Activity
 
 If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please consider giving the repository a star!
 
@@ -692,6 +694,10 @@ If you find Tessera helpful for eliminating video transcoding costs or building 
   &nbsp;
   <a href="https://github.com/Ashutosh-Repos/Tessera/discussions">
     <img src="https://img.shields.io/badge/Discussions-Join%20Chat-8957e5?style=for-the-badge&logo=github" alt="GitHub Discussions" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/Ashutosh-Repos/Tessera/commits/main">
+    <img src="https://img.shields.io/github/commit-activity/m/Ashutosh-Repos/Tessera?style=for-the-badge&color=0969da&logo=git&label=Monthly%20Activity" alt="Monthly Activity" />
   </a>
 </p>
 
