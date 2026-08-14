@@ -28,6 +28,7 @@
 ## 📑 Table of Contents
 
 - [✨ Core Capabilities](#-core-capabilities)
+  - [🥊 Feature & Cost Matrix](#-feature--cost-matrix-tessera-vs-managed-cloud-providers)
 - [📐 Architecture Overview](#-architecture-overview)
 - [⚡ Key Architectural Innovations](#-key-architectural-innovations)
 - [🔄 Life of a Video Upload](#-life-of-a-video-upload)
@@ -41,6 +42,7 @@
 - [📂 Repository Structure](#-repository-structure)
 - [📖 Unified Documentation](#-unified-documentation)
 - [🤝 Contributing & Community Roadmap](#-contributing--community-roadmap)
+- [⭐ Star History](#-star-history)
 - [📄 License](#-license)
 
 ---
@@ -57,6 +59,21 @@ Tessera is engineered to run on commodity compute (from a single $10/month VPS t
 * **Manifest-Only Cross-Region Replication (CRR)**: Replicates only lightweight streaming playlists (<10KB total) across cloud regions while keeping heavy `.ts` chunks local, saving **>99.99% in WAN egress fees**.
 * **High-Density Telemetry Multiplexer**: Fans out real-time Redis Streams progress events to 50,000+ SSE client connections with **1 Redis connection per gateway node**.
 * **Enterprise Hardware Acceleration**: Pluggable support for CPU (`libx264`), NVIDIA NVENC (`h264_nvenc`), Intel VAAPI (`h264_vaapi`), and Apple VideoToolbox (`h264_videotoolbox`).
+
+### 🥊 Feature & Cost Matrix: Tessera vs. Managed Cloud Providers
+
+| Capability / Metric | 🎬 Tessera (Open Source) | ☁️ AWS Elemental MediaConvert | 🚀 Bitmovin | ⚡ Mux Video | 🌐 Cloudflare Stream |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Pricing Model** | **$0 / min (Self-hosted VM cost only)** | $0.015 – $0.048 / min | $0.025+ / min | $0.005 / min | $1.00 / 1000 min |
+| **Est. Cost per 10,000 hrs/mo** | **~$200 – $800** | ~$14,400 | ~$15,000 | ~$3,000 | ~$600 + storage |
+| **Multi-Region Consistent Hashing** | ✅ **1024 Virtual Partitions (Etcd)** | ❌ Region-locked queues | ❌ Proprietary | ❌ Black-box SaaS | ❌ Black-box SaaS |
+| **Zero-Disk S3 Stream Slicing** | ✅ **Yes (<1MB moov inspect)** | ❌ Full S3 download | ❌ Full download | ❌ Proprietary | ❌ Proprietary |
+| **Zero-Allocation MPEG-TS Probing** | ✅ **0.36 ns/op (Pure Go)** | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary |
+| **Manifest-Only Cross-Region CRR** | ✅ **>99.99% Egress Savings** | ❌ Full chunk replication | ❌ Proprietary | ❌ Black-box | ❌ Black-box |
+| **Hardware Acceleration** | ✅ **NVENC, VAAPI, VideoToolbox** | ✅ Accelerated tier (+$) | ✅ GPU instances | ✅ Internal | ✅ Internal |
+| **Included React 19 UI SDK** | ✅ **Included (`@distributed-transcoder/ui-sdk`)** | ❌ None | ⚠️ Player SDK only | ⚠️ Player only | ⚠️ Player only |
+| **Real-Time Telemetry Multiplexer** | ✅ **1 Redis conn per 50k SSE** | ❌ CloudWatch poll | ❌ Webhook poll | ❌ Webhook poll | ❌ Webhook poll |
+
 
 ---
 
@@ -592,6 +609,18 @@ To contribute:
 3. Ensure all tests and race detection pass (`go test -race ./...`).
 4. Commit your changes (`git commit -m 'feat: add support for AV1 transcode ladder'`).
 5. Push to the branch and open a Pull Request.
+
+---
+
+## ⭐ Star History
+
+If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please give the project a star on GitHub!
+
+<p align="center">
+  <a href="https://star-history.com/#Ashutosh-Repos/Tessera&Date">
+    <img src="https://api.star-history.com/svg?repos=Ashutosh-Repos/Tessera&type=Date&theme=dark" alt="Tessera Star History Chart" width="100%" />
+  </a>
+</p>
 
 ---
 
