@@ -682,7 +682,7 @@ To contribute:
 If you find Tessera helpful for eliminating video transcoding costs or building distributed systems in Go, please consider giving the repository a star!
 
 <p align="center">
-  <a href="https://github.com/Ashutosh-Repos/Tessera/stargazers">
+  <a href="https://github.com/Ashutosh-Repos/Tessera">
     <img src="https://img.shields.io/github/stars/Ashutosh-Repos/Tessera?style=for-the-badge&logo=github&color=238636" alt="GitHub Stars" />
   </a>
   &nbsp;
