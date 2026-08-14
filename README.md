@@ -38,6 +38,7 @@
 - [📦 Frontend Ecosystem & UI SDK](#-frontend-ecosystem--ui-sdk)
 - [🔌 REST API & Telemetry Reference](#-rest-api--telemetry-reference)
 - [🧪 Testing & Performance Scorecard](#-testing--performance-scorecard)
+- [📈 Observability & Prometheus Telemetry](#-observability--prometheus-telemetry)
 - [⚙️ Configuration & CLI Reference](#️-configuration--cli-reference)
 - [📂 Repository Structure](#-repository-structure)
 - [📖 Unified Documentation](#-unified-documentation)
@@ -276,17 +277,36 @@ Cross-region replication (CRR) of raw or transcoded `.ts` video chunks causes ca
 
 Spin up a complete local distributed cluster (Gateway, Coordinator, 2× Workers, Redis, NATS JetStream, Etcd, MinIO S3, Admin Console, and Developer Portal) in 60 seconds:
 
-### 1. Clone & Bootstrap
+### 1. Option A: Standalone Pre-Compiled Binary (No Docker / Go Required)
+
+Download the self-contained static binary directly for your operating system:
+
+| Platform | Architecture | Binary Download Link |
+| :--- | :--- | :--- |
+| **Linux** | `x86_64` (AMD64) | [`tessera-linux-amd64`](https://github.com/Ashutosh-Repos/Tessera/releases/download/v1.0.0/tessera-linux-amd64) |
+| **Linux** | `aarch64` (ARM64 / Graviton) | [`tessera-linux-arm64`](https://github.com/Ashutosh-Repos/Tessera/releases/download/v1.0.0/tessera-linux-arm64) |
+| **macOS** | Apple Silicon (`M1/M2/M3/M4`) | [`tessera-darwin-arm64`](https://github.com/Ashutosh-Repos/Tessera/releases/download/v1.0.0/tessera-darwin-arm64) |
+| **macOS** | Intel `x86_64` | [`tessera-darwin-amd64`](https://github.com/Ashutosh-Repos/Tessera/releases/download/v1.0.0/tessera-darwin-amd64) |
+
+```bash
+# Example: Download and launch Gateway on Linux
+curl -LO https://github.com/Ashutosh-Repos/Tessera/releases/download/v1.0.0/tessera-linux-amd64
+chmod +x tessera-linux-amd64
+./tessera-linux-amd64 server gateway --config configs/docker.yaml
+```
+
+### 2. Option B: Platform-in-a-Box via Docker Compose (Recommended)
+
 ```bash
 # Clone the repository
 git clone https://github.com/Ashutosh-Repos/Tessera.git
 cd Tessera
 
-# Start the cluster
+# Start the cluster (Docker Compose infra + Go engines)
 chmod +x start.sh && ./start.sh
 ```
 
-### 2. Available Endpoints
+### 3. Available Endpoints
 
 | Service | URL | Default Credentials / Purpose |
 | :--- | :--- | :--- |
@@ -297,7 +317,7 @@ chmod +x start.sh && ./start.sh
 | **SRE Admin Console** | `http://localhost:5173` | Real-time queue, node & cluster monitor |
 | **Prometheus Metrics** | `http://localhost:9091/metrics` | Prometheus metrics scrape endpoint |
 
-### 3. Scaling Workers On the Fly
+### 4. Scaling Workers On the Fly
 ```bash
 # Scale worker compute daemons up dynamically to drain large queues
 docker compose -f docker-compose.prod.yml up -d --scale worker=6
@@ -445,6 +465,29 @@ event: complete
 data: {"job_id":"job_01h8a3c4","status":"ready","hls_url":"/hls/master.m3u8","dash_url":"/dash/manifest.mpd"}
 ```
 
+### 5. Terminal Quick-Test (cURL Ingestion Walkthrough)
+
+You can trigger a complete video ingestion test directly from your terminal in under 10 seconds:
+
+```bash
+# 1. Initialize Upload Session
+SESSION=$(curl -s -X POST http://localhost:8080/api/jobs/upload-session \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"keynote.mp4","file_size":52428800,"chunk_size":10485760}')
+
+JOB_ID=$(echo $SESSION | jq -r .job_id)
+TOKEN=$(echo $SESSION | jq -r .jwt_token)
+echo "Started Job: $JOB_ID"
+
+# 2. Request Batch Presigned S3 PUT URLs
+URLS=$(curl -s -X POST "http://localhost:8080/api/jobs/${JOB_ID}/urls?start=1&count=5" \
+  -H "Authorization: Bearer ${TOKEN}")
+
+# 3. Stream Real-Time SSE Transcoding Telemetry
+curl -N "http://localhost:8080/api/jobs/${JOB_ID}/progress"
+```
+
+
 ---
 
 ## 🧪 Testing & Performance Scorecard
@@ -474,6 +517,28 @@ go vet ./...
 
 ---
 
+
+
+## 📈 Observability & Prometheus Telemetry
+
+Tessera exposes deep runtime telemetry, FFmpeg hardware metrics, and coordinator ring health on `:9091/metrics`:
+
+| Metric Name | Type | Description |
+| :--- | :--- | :--- |
+| `tessera_gateway_active_sse_connections` | Gauge | Number of active concurrent client SSE progress streams. |
+| `tessera_coordinator_slicing_duration_seconds` | Histogram | In-memory zero-disk faststart stream slicing latency. |
+| `tessera_coordinator_active_partitions` | Gauge | Number of active hash ring partitions assigned to coordinator. |
+| `tessera_worker_tasks_completed_total` | Counter | Total transcoded chunks processed, partitioned by resolution and codec. |
+| `tessera_worker_ffmpeg_duration_seconds` | Histogram | Execution time of isolated FFmpeg subprocesses. |
+| `tessera_worker_circuit_breaker_state` | Gauge | S3/Redis circuit breaker state (`0`: Closed, `1`: Half-Open, `2`: Open). |
+| `tessera_worker_temp_disk_usage_bytes` | Gauge | Active scratch space utilization monitored by the disk watchdog. |
+
+```bash
+# Scrape Prometheus metrics locally
+curl -s http://localhost:9091/metrics | grep tessera_
+```
+
+---
 ## ⚙️ Configuration & CLI Reference
 
 All components compile into a single Go binary: `tessera`.
